@@ -1,0 +1,723 @@
+Gesamtidee des Frameworks
+
+Mini-Autoflutter ist ein kleiner Orchestrator, der aus einer Produktspezifikation automatisch Arbeitsschritte für eine Flutter-App ableitet und diese Schritt für Schritt umsetzen lässt.
+
+Der Kernablauf ist:
+
+Konfiguration laden
+Produktspezifikation lesen
+Taskliste erzeugen, falls sie noch nicht existiert
+Nächsten offenen Task auswählen
+Dafür einen Implementierungs-Prompt bauen
+Einen Coding-Agenten ausführen
+flutter analyze und flutter test laufen lassen
+Bei Fehlern einen Fix-Prompt bauen
+Status speichern
+Mit dem nächsten Task weitermachen
+
+Wichtig ist:
+Das Framework baut nicht selbst intelligent Flutter-Code, sondern es steuert den Prozess. Die eigentliche Umsetzung soll durch Codex oder einen anderen Coding-Agenten passieren.
+
+Die Hauptbereiche im Repo
+
+Du hast im Prinzip vier Ebenen:
+
+configs/ → zentrale Konfiguration
+specs/ → Eingabe, Plan und Laufzustand
+orchestrator/ → Ablaufsteuerung
+agents/ → Prompt-Erzeugung
+execution/ → externe Ausführung und Validierung
+apps/ → das eigentliche Flutter-Zielprojekt
+1. Root-Dateien
+README.md
+
+Diese Datei ist die Einführung ins Projekt.
+
+Sie sollte beantworten:
+
+Was ist Mini-Autoflutter?
+Was ist das Ziel?
+Wie ist das Repo aufgebaut?
+Wie startet man das Framework?
+Welche Grenzen hat V1?
+
+Sie ist für Menschen gedacht, nicht für die Laufzeit.
+Ein neuer Entwickler soll nach 2 Minuten grob verstehen:
+
+was das Projekt macht
+welche Komponenten es gibt
+wie man es startet
+AGENTS.md
+
+Diese Datei beschreibt die Rollen der internen Agenten.
+
+Sie ist wichtig, damit ein Mitentwickler oder ein LLM versteht:
+
+was flutter_dev_agent.py macht
+was fixer_agent.py macht
+was codex_runner.py erwartet
+
+Man kann sie als Arbeitsvertrag zwischen Architektur und Agenten sehen.
+
+requirements.txt
+
+Hier stehen die Python-Abhängigkeiten.
+
+Für V1 reicht fast nichts. Typisch ist:
+
+PyYAML zum Lesen von YAML-Dateien
+
+Der Sinn ist, die Orchestrator-Umgebung reproduzierbar zu machen.
+
+2. Konfiguration
+configs/framework.yaml
+
+Das ist die zentrale Laufzeit-Konfiguration.
+
+Sie sagt dem Framework:
+
+wie das Projekt heißt
+wo die Produktspezifikation liegt
+wo der Task-Graph liegt
+wo der Laufzustand gespeichert wird
+wo das Flutter-Projekt liegt
+welche Validierungs-Kommandos ausgeführt werden
+wie viele Fix-Versuche erlaubt sind
+wie der Codex-Runner arbeiten soll
+
+Beispielhafte Inhalte:
+
+project_path → wohin implementiert werden soll
+commands.analyze → z. B. flutter analyze
+commands.test → z. B. flutter test
+max_fix_attempts → z. B. 2
+
+Diese Datei ist wichtig, weil sie das Framework konfigurierbar macht.
+Ohne sie wären überall harte Pfade und feste Kommandos im Python-Code eingebrannt.
+
+3. Spezifikations- und Statusdateien
+
+Diese Dateien liegen unter specs/project/.
+
+specs/project/product_spec.yaml
+
+Das ist die fachliche Eingabe für das gesamte System.
+
+Hier steht, was die App grob sein soll. Zum Beispiel:
+
+Name der App
+Ziel
+Features
+Plattformen
+feste Regeln wie Flutter/Supabase
+
+Diese Datei ist die einzige eigentliche Produktquelle in V1.
+
+Der Planner liest sie, um daraus Tasks zu bauen.
+Die Agenten lesen sie, damit ihre Prompts nicht blind sind.
+
+Ganz wichtig:
+product_spec.yaml beschreibt nicht den Code, sondern das Produkt.
+
+specs/project/task_graph.yaml
+
+Das ist der umsetzbare Arbeitsplan.
+
+Er wird normalerweise aus der Produktspezifikation erzeugt und enthält Tasks wie:
+
+Projekt anlegen
+Home Screen bauen
+Auth vorbereiten
+Tests ergänzen
+
+Jeder Task sollte mindestens haben:
+
+id
+title
+optional depends_on
+done_when
+
+Die Datei ist entscheidend, weil sie die Brücke bildet zwischen:
+
+Produktidee
+und konkreter technischer Abarbeitung
+
+Der Scheduler arbeitet auf dieser Datei.
+
+Wichtig: In V1 ist dieser Graph noch sehr einfach.
+Er ist eher eine lineare Liste mit Abhängigkeiten als ein wirklich komplexer Graph.
+
+specs/project/state.json
+
+Das ist der laufende Zustand des Frameworks.
+
+Hier steht zum Beispiel:
+
+ob der Lauf idle, running oder completed ist
+welcher Task gerade aktiv ist
+welche Tasks bereits erledigt sind
+welche gescheitert sind
+wie viele Versuche pro Task gemacht wurden
+
+Beispielhafte Felder:
+
+status
+current_task_id
+completed_tasks
+failed_tasks
+task_attempts
+
+Diese Datei ist enorm wichtig, weil sie den Lauf robust und nachvollziehbar macht.
+
+Ohne sie gäbe es Probleme wie:
+
+nach Absturz nicht wissen, wo man war
+bereits erledigte Tasks nochmal ausführen
+keine Retry-Informationen haben
+4. Orchestrator: die Ablaufsteuerung
+
+Das Verzeichnis orchestrator/ ist das Herz des Systems.
+
+orchestrator/main.py
+
+Das ist der Startpunkt.
+
+Diese Datei soll so wenig Logik wie möglich haben.
+Ihre Aufgabe ist nur:
+
+Argumente lesen
+Konfigurationspfad bestimmen
+Engine initialisieren
+Engine starten
+
+Warum ist das gut?
+
+Weil main.py dadurch sehr stabil und austauschbar bleibt.
+Die eigentliche Intelligenz liegt nicht im Einstieg, sondern in der Engine.
+
+Du kannst dir main.py als Bootstrap-Datei vorstellen.
+
+orchestrator/engine.py
+
+Das ist die zentrale Ablaufsteuerung.
+Wenn es eine wichtigste Datei im ganzen Projekt gibt, dann diese.
+
+Sie koordiniert alles:
+
+Konfiguration laden
+State initialisieren
+Plan sicherstellen
+Produktspezifikation lesen
+nächsten Task bestimmen
+Dev-Prompt bauen
+Codex ausführen
+Validierung starten
+bei Fehlern Fix-Loop ausführen
+Task als done oder failed markieren
+weiterschleifen bis nichts mehr offen ist
+
+Die Engine kennt die anderen Module, aber die anderen Module sollten möglichst wenig voneinander wissen.
+
+Das ist architektonisch gut, weil du damit eine klare Schichtung bekommst:
+
+engine.py = Koordinator
+Agenten = Prompt-Spezialisten
+Execution = externe Aufrufe
+State/Planner/Scheduler = Hilfsmodule
+
+Die Engine ist also nicht der Ort für Speziallogik, sondern für Ablaufkontrolle.
+
+orchestrator/planner.py
+
+Diese Datei erzeugt aus product_spec.yaml den task_graph.yaml.
+
+Ihre Verantwortung ist:
+
+prüfen, ob bereits ein Task-Graph existiert
+wenn nein: Produktspezifikation lesen
+daraus eine einfache Taskliste ableiten
+Task-Graph speichern
+
+Warum ist diese Datei separat?
+
+Weil Planung eine andere Aufgabe ist als Ausführung.
+
+Die Engine soll nicht gleichzeitig:
+
+planen
+schedulen
+implementieren
+validieren
+Zustand verwalten
+
+Der Planner kapselt genau die Frage:
+
+Wie komme ich von einer Produktbeschreibung zu einer Liste konkreter Entwicklungsschritte?
+
+In V1 sollte der Planner bewusst simpel sein.
+Zum Beispiel:
+
+immer zuerst ein Bootstrap-Task
+dann für jedes Feature ein Task
+jeweils mit einfacher linearer Dependency
+
+Später könnte man hier deutlich mehr Intelligenz einbauen, aber für V1 ist simpel besser.
+
+orchestrator/scheduler.py
+
+Diese Datei entscheidet, welcher Task als Nächstes dran ist.
+
+In V1 ist die Regel:
+
+nimm den ersten Task,
+der noch nicht erledigt ist,
+und dessen Dependencies erfüllt sind
+
+Das ist absichtlich minimal.
+
+Warum separat?
+
+Weil Planung und Scheduling nicht dasselbe sind.
+
+Planner erstellt die Menge der Tasks
+Scheduler entscheidet, welcher jetzt dran ist
+
+Später könntest du hier andere Strategien einbauen:
+
+Prioritäten
+kürzeste Tasks zuerst
+Risiko zuerst
+bestimmte Task-Typen bevorzugen
+
+In V1 reicht aber eine einfache deterministische Regel.
+
+orchestrator/state_manager.py
+
+Diese Datei liest und schreibt state.json.
+
+Ihre Aufgaben:
+
+State-Datei anlegen, falls sie fehlt
+State laden
+Default-Werte sicherstellen
+Status aktualisieren
+aktuellen Task setzen
+Versuche hochzählen
+Task als erledigt markieren
+Task als gescheitert markieren
+
+Warum ist das ausgelagert?
+
+Weil Dateizugriff und Zustandslogik leicht chaotisch werden, wenn man sie quer durch die Engine verteilt.
+
+Mit state_manager.py gibt es genau einen Ort für Fragen wie:
+
+Wie wird state.json gelesen?
+Wie sieht ein gültiger Default-State aus?
+Wie wird task_attempts inkrementiert?
+Wie markiere ich einen Task korrekt als done?
+
+Das macht den Code wesentlich robuster.
+
+5. Agents: Prompt-Erzeugung
+
+Die Agenten schreiben keinen Code direkt.
+Sie erzeugen die Anweisungen, mit denen ein externer Coding-Agent arbeiten soll.
+
+agents/flutter_dev_agent.py
+
+Diese Datei baut den Implementierungs-Prompt für einen Task.
+
+Sie nimmt typischerweise:
+
+aktuellen Task
+Produktspezifikation
+Framework-Konfiguration
+Repo-Pfad
+
+und formuliert daraus einen Prompt wie:
+
+was das Ziel ist
+wo das Flutter-Projekt liegt
+welche Architekturregeln gelten
+was genau jetzt implementiert werden soll
+was nicht verändert werden soll
+dass Flutter und Supabase bindend sind
+dass kleine, gezielte Änderungen bevorzugt werden
+
+Warum braucht man diese Datei?
+
+Weil der Coding-Agent Kontext braucht.
+Ein nackter Task-Titel wie „Add auth“ reicht nicht.
+
+Der Dev-Agent übersetzt also:
+
+strukturierte Systemdaten → brauchbare Arbeitsanweisung
+
+Das ist ein sehr wichtiger Unterschied.
+Die Taskliste ist maschinenfreundlich, der Prompt muss agentenfreundlich sein.
+
+agents/fixer_agent.py
+
+Diese Datei baut den Fix-Prompt, wenn Analyse oder Tests fehlschlagen.
+
+Zusätzliche Eingaben sind hier:
+
+flutter analyze Ergebnis
+flutter test Ergebnis
+Fehlermeldungen
+aktueller Task
+Produktspezifikation
+
+Der Fix-Agent soll dem Coding-Agenten sagen:
+
+was kaputt ist
+wo die Validierung fehlschlägt
+dass nur relevante Korrekturen gemacht werden sollen
+dass die Architekturregeln nicht verletzt werden dürfen
+dass möglichst kleine Fixes gemacht werden sollen
+
+Warum getrennt vom Dev-Agent?
+
+Weil „etwas neu implementieren“ und „etwas gezielt reparieren“ zwei unterschiedliche Prompts brauchen.
+
+Der Dev-Prompt fokussiert auf Aufbau.
+Der Fix-Prompt fokussiert auf Fehlerbehebung.
+
+Diese Trennung ist sehr sinnvoll.
+
+6. Execution: externe Ausführung
+
+Hier geht es nicht mehr um Planung oder Prompting, sondern um echte Aufrufe.
+
+execution/codex_runner.py
+
+Diese Datei ist die Schnittstelle zu Codex oder einem anderen Coding-Agenten.
+
+Ihre Aufgabe ist:
+
+Prompt entgegennehmen
+Prompt protokollieren
+optional einen externen Befehl aufrufen
+Ergebnis speichern
+Erfolg oder Fehler zurückgeben
+
+Wichtig:
+In einem echten System ist das die Stelle, an der du eine echte OpenAI-API, eine Codex-CLI oder einen anderen Coding-Agenten integrierst.
+
+In V1 ist ein Dry-Run oft sinnvoll, damit die Orchestrierung erstmal steht.
+
+Konzeptionell ist codex_runner.py der Adapter zwischen:
+
+deiner internen Orchestrator-Logik
+und dem externen Agenten, der tatsächlich Code ändert
+
+Warum separat?
+
+Weil du später die Anbindung austauschen können willst, ohne die Engine umzuschreiben.
+
+Zum Beispiel:
+
+heute lokale CLI
+morgen OpenAI API
+später anderer Provider
+
+Die Engine sollte davon möglichst wenig wissen.
+
+execution/command_runner.py
+
+Diese Datei führt lokale Shell-Kommandos aus.
+
+In V1 vor allem:
+
+flutter analyze
+flutter test
+
+Sie sollte zurückgeben:
+
+Exit-Code
+stdout
+stderr
+welches Kommando lief
+in welchem Verzeichnis es lief
+
+Diese Datei ist wichtig, weil die Validierung eine klar abgegrenzte Aufgabe ist.
+
+Warum nicht direkt in engine.py?
+
+Weil du sonst Prozessausführung, Fehlerauswertung und Logging überall verstreust.
+
+command_runner.py kapselt sauber:
+
+„Führe ein Kommando aus und gib mir ein strukturiertes Ergebnis zurück.“
+
+Später könnte man hier erweitern:
+
+Timeouts
+mehrere Kommandos
+kombinierte Validierung
+environment handling
+Logging in Dateien
+7. Das Zielprojekt
+apps/project/
+
+Das ist das Verzeichnis, in dem die eigentliche Flutter-App liegen soll.
+
+Der Orchestrator selbst lebt also getrennt vom Produktcode.
+
+Das ist sehr wichtig.
+
+Warum?
+
+Weil du zwei unterschiedliche Ebenen hast:
+
+Framework-Code → steuert den Prozess
+App-Code → wird erzeugt und verändert
+
+Wenn du das mischst, wird alles schnell unklar.
+
+apps/project/ ist also der Arbeitsbereich für den Coding-Agenten.
+
+Dort sollen später Dinge entstehen wie:
+
+pubspec.yaml
+lib/main.dart
+test/...
+evtl. Supabase-Anbindung
+Wie die Dateien zusammenarbeiten
+
+Jetzt einmal als echter Datenfluss:
+
+Schritt 1: Start
+
+orchestrator/main.py wird gestartet.
+
+Es lädt die Konfiguration und baut eine Engine.
+
+Schritt 2: Engine initialisiert
+
+engine.py liest:
+
+configs/framework.yaml
+
+und kennt dadurch:
+
+wo Spezifikation liegt
+wo Task-Graph liegt
+wo State liegt
+wo das Flutter-Projekt liegt
+welche Kommandos auszuführen sind
+Schritt 3: State sicherstellen
+
+engine.py ruft state_manager.py auf.
+
+Wenn state.json fehlt, wird sie erzeugt.
+Dann wird der aktuelle Status geladen.
+
+Schritt 4: Plan sicherstellen
+
+engine.py ruft planner.py auf.
+
+Wenn task_graph.yaml schon da ist, wird er genutzt
+Wenn nicht, wird er aus product_spec.yaml erzeugt
+Schritt 5: Nächsten Task wählen
+
+engine.py ruft scheduler.py auf.
+
+Der Scheduler schaut:
+
+welche Tasks schon erledigt sind
+welche Dependencies erfüllt sind
+welcher der erste offene Task ist
+Schritt 6: Dev-Prompt bauen
+
+engine.py ruft flutter_dev_agent.py auf.
+
+Dieser erzeugt aus:
+
+Task
+Produkt-Spezifikation
+Regeln
+Pfaden
+
+einen Implementierungs-Prompt.
+
+Schritt 7: Coding-Agent ausführen
+
+engine.py ruft codex_runner.py auf.
+
+Dort wird der Prompt an das externe Coding-System übergeben.
+
+Dieses soll dann Änderungen im Repo bzw. im Flutter-Projekt vornehmen.
+
+Schritt 8: Validierung
+
+engine.py ruft command_runner.py auf.
+
+Dieser führt aus:
+
+flutter analyze
+flutter test
+
+und gibt die Ergebnisse zurück.
+
+Schritt 9: Fehlerbehebung
+
+Wenn Validierung fehlschlägt:
+
+engine.py ruft fixer_agent.py auf
+dieser erzeugt einen Fix-Prompt
+codex_runner.py führt erneut aus
+command_runner.py validiert erneut
+
+Das passiert bis max_fix_attempts erreicht sind.
+
+Schritt 10: Zustand speichern
+
+engine.py nutzt state_manager.py, um den Task als
+
+done
+oder failed
+
+zu markieren.
+
+Dann beginnt die Schleife wieder von vorne.
+
+Warum diese Architektur gut ist
+
+Dein Entwurf ist gut, weil jede Datei eine klare Verantwortung hat.
+
+Das ist das wichtigste Prinzip hier.
+
+Gute Trennung in deinem Konzept
+
+main.py
+= Einstieg
+
+engine.py
+= Ablaufsteuerung
+
+planner.py
+= aus Spezifikation Tasks erzeugen
+
+scheduler.py
+= nächsten Task bestimmen
+
+state_manager.py
+= Zustand speichern
+
+flutter_dev_agent.py
+= Implementierungs-Prompt bauen
+
+fixer_agent.py
+= Fix-Prompt bauen
+
+codex_runner.py
+= externen Coding-Agenten aufrufen
+
+command_runner.py
+= lokale Validierungs-Kommandos ausführen
+
+Das ist sauber, weil dadurch jede Komponente klein und testbar bleibt.
+
+Wo die kritischsten Stellen sind
+
+Wenn du das wirklich entwickelst, sind diese Dateien die wichtigsten Problemzonen:
+
+planner.py
+
+Weil hier Produktdenken in umsetzbare Tasks übersetzt wird.
+Das ist fachlich die unsicherste Stelle.
+
+engine.py
+
+Weil hier der gesamte Ablauf robust sein muss.
+Wenn hier Logikfehler sind, läuft das ganze System schief.
+
+codex_runner.py
+
+Weil hier die Außenwelt beginnt.
+API, CLI, Dateisystemänderungen und Fehlersituationen machen das heikel.
+
+command_runner.py
+
+Weil lokale Umgebung, Flutter-Setup und Prozessausführung fehleranfällig sind.
+
+Was in V1 bewusst einfach bleiben sollte
+
+Damit das Projekt nicht kippt, sollte V1 bewusst klein bleiben.
+
+Planner
+
+Nicht „superintelligent“, sondern simpel.
+
+Scheduler
+
+Nur „erster ausführbarer Task“.
+
+State
+
+Nur das Nötigste speichern.
+
+Validation
+
+Nur flutter analyze und flutter test.
+
+Fixing
+
+Nur wenige Retries, keine komplexe Root-Cause-Engine.
+
+Das ist gut so.
+Ein kleines stabiles V1 ist viel wertvoller als ein cleveres instabiles V1.
+
+Mentales Modell für das ganze System
+
+Du kannst dir das Framework so merken:
+
+1. Specs beschreiben das Ziel
+product_spec.yaml
+2. Planner macht daraus Arbeit
+task_graph.yaml
+3. State merkt sich den Fortschritt
+state.json
+4. Engine steuert die Ausführung
+engine.py
+5. Agents formulieren Arbeitsanweisungen
+flutter_dev_agent.py, fixer_agent.py
+6. Execution führt aus und prüft
+codex_runner.py, command_runner.py
+7. App-Verzeichnis ist das Bauziel
+apps/project/
+Was jede Datei in einem Satz macht
+
+Falls du es ultra-kompakt willst:
+
+README.md → erklärt das Projekt für Menschen
+AGENTS.md → beschreibt die Rollen der Agenten
+requirements.txt → listet Python-Abhängigkeiten
+configs/framework.yaml → zentrale Laufzeit-Konfiguration
+specs/project/product_spec.yaml → fachliche App-Beschreibung
+specs/project/task_graph.yaml → konkrete Taskliste
+specs/project/state.json → aktueller Ausführungszustand
+orchestrator/main.py → startet das Framework
+orchestrator/engine.py → steuert den kompletten Ablauf
+orchestrator/planner.py → erzeugt Tasks aus der Spezifikation
+orchestrator/scheduler.py → wählt den nächsten Task
+orchestrator/state_manager.py → liest und schreibt den Zustand
+agents/flutter_dev_agent.py → baut den Implementierungs-Prompt
+agents/fixer_agent.py → baut den Fix-Prompt
+execution/codex_runner.py → ruft den Coding-Agenten auf
+execution/command_runner.py → führt flutter analyze und flutter test aus
+apps/project/ → enthält die zu bauende Flutter-App
+Mein ehrliches Architektururteil
+
+Dein Konzept ist für V1 sehr sinnvoll, weil es:
+
+minimal ist
+klar getrennte Verantwortungen hat
+testbar ist
+später erweiterbar ist
+nicht zu früh overengineert
+
+Die größte Gefahr wäre nur, dass engine.py am Ende zu viel Speziallogik einsammelt.
+Darauf solltest du achten.
