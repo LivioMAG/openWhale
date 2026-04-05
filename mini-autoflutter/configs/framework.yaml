@@ -1,0 +1,10 @@
+# Placeholder configuration for Schritt 1.
+project_name: project
+project_path: apps/project
+spec_path: specs/project/product_spec.yaml
+task_graph_path: specs/project/task_graph.yaml
+state_path: specs/project/state.json
+commands:
+  analyze: flutter analyze
+  test: flutter test
+max_fix_attempts: 2
