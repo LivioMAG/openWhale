@@ -1,4 +1,21 @@
-# Placeholder product specification for Schritt 1.
-product:
-  name: "Mini Autoflutter App"
-  goal: "Replace this placeholder with a real product specification."
+{
+  "product": {
+    "name": "Mini Autoflutter Demo",
+    "summary": "Eine einfache Flutter-App mit Login-UI als Einstieg.",
+    "frontend": {
+      "framework": "flutter",
+      "screens": ["login", "home"]
+    },
+    "backend": {
+      "provider": "supabase",
+      "auth": {
+        "optional": true,
+        "methods": ["email_password"]
+      }
+    },
+    "quality": [
+      "flutter analyze muss ohne Fehler laufen",
+      "flutter test muss gruen laufen"
+    ]
+  }
+}
