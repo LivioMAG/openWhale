@@ -1,1 +1,1 @@
-PyYAML>=6.0,<7.0
+# No external runtime dependencies are required for V1.

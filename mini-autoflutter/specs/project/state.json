@@ -1,8 +1,23 @@
 {
-  "status": "idle",
+  "run_status": "failed",
   "current_task_id": null,
   "completed_tasks": [],
-  "failed_tasks": [],
-  "task_attempts": {},
-  "last_error": null
+  "failed_tasks": [
+    "T1"
+  ],
+  "task_attempts": {
+    "T1": 1
+  },
+  "fix_attempts": {
+    "T1": 2
+  },
+  "last_error": "Quality checks failed.\nAnalyze (127):\n/bin/sh: 1: flutter: not found\n\nTest (127):\n/bin/sh: 1: flutter: not found",
+  "history": [
+    {
+      "timestamp": "2026-04-05T21:50:48.221458+00:00",
+      "task_id": "T1",
+      "status": "failed",
+      "message": "Quality checks failed.\nAnalyze (127):\n/bin/sh: 1: flutter: not found\n\nTest (127):\n/bin/sh: 1: flutter: not found"
+    }
+  ]
 }
