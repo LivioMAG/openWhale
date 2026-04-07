@@ -468,10 +468,15 @@ const validateComposer = async () => {
     media_items: usedSlots,
   };
 
-  const imageEditingImageMap = usedSlots.map((entry) => ({
-    image_url: entry.file_url,
-    image_editing_id: entry.image_editing_id,
-  }));
+  const imageEditingImageMap = usedSlots.map((entry) => {
+    const templateOption = getTemplateOptionById(entry.image_editing_id);
+    return {
+      image_url: entry.file_url,
+      image_editing_id: entry.image_editing_id,
+      edited_image_url: templateOption?.image_url ?? null,
+      edited_image_id: templateOption?.id ?? null,
+    };
+  });
 
   const prettySummary = [
     `Vorlage: ${summaryPayload.template.name} (#${summaryPayload.template.id})`,
@@ -810,7 +815,7 @@ const renderPostingJobs = (rows) => {
 const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
-    .select("id, name, editing_instructions")
+    .select("id, name, editing_instructions, image_url")
     .order("name", { ascending: true });
 
   if (error) {
