@@ -60,17 +60,23 @@
                 </div>
               </label>
               <label>
-                Zur Gruppe hinzufügen
-                <select id="pool-group-select">
-                  <option value="">Neue/keine Gruppe</option>
-                </select>
-              </label>
-              <label>
                 Nach Gruppe filtern
                 <select id="pool-filter-group">
                   <option value="__all__">Alle Gruppen</option>
                 </select>
               </label>
+            </div>
+            <div class="composer-panel">
+              <div class="panel-header">
+                <div>
+                  <h3>Vorlage anwenden</h3>
+                  <p>Vorlage oben aufklappen, wählen und Slots befüllen (Post oder Karussell).</p>
+                </div>
+                <button id="create-composition" class="plus" aria-label="Vorlage anwenden ein-/ausklappen">＋</button>
+              </div>
+              <div id="composition-area" class="composition-area hidden">
+                <p>Klicke auf ＋, um eine Vorlage für Post oder Karussell zu starten.</p>
+              </div>
             </div>
             <input id="pool-file-input" class="hidden" type="file" accept="image/*,video/*" multiple />
             <div id="pool-list" class="pool-list">
@@ -78,21 +84,8 @@
             </div>
             <p id="pool-message" class="message" role="status" aria-live="polite"></p>
           </section>
-
-          <section class="pool-column">
-            <div class="panel-header">
-              <div>
-                <h3>Vorlage anwenden</h3>
-                <p>Vorlage wählen, Bilder zuordnen und einmalige Post-Info eintragen.</p>
-              </div>
-              <button id="create-composition" class="plus" aria-label="Neue Zuordnung anlegen">＋</button>
-            </div>
-            <div id="composition-area" class="composition-area">
-              <p>Klicke auf ＋, um eine Vorlage für Post oder Karussell zu starten.</p>
-            </div>
-            <p id="composition-message" class="message" role="status" aria-live="polite"></p>
-          </section>
         </div>
+        <p id="composition-message" class="message" role="status" aria-live="polite"></p>
       </section>
 
       <section id="templates" class="tab-panel card">

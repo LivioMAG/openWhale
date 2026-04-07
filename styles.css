@@ -344,7 +344,7 @@ dialog form {
 
 .pool-layout {
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -363,6 +363,10 @@ dialog form {
   padding: 0.65rem;
   min-height: 260px;
   background: #fafbff;
+}
+
+.composer-panel {
+  margin-top: 0.75rem;
 }
 
 .pool-upload-controls {
