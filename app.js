@@ -21,7 +21,7 @@ const poolPreviewTitle = document.querySelector("#pool-preview-title");
 const poolPreviewImage = document.querySelector("#pool-preview-image");
 const poolPreviewVideo = document.querySelector("#pool-preview-video");
 const closePoolPreviewBtn = document.querySelector("#close-pool-preview");
-const createCompositionBtn = document.querySelector("#create-composition");
+const openComposerTemplateModalBtn = document.querySelector("#open-composer-template-modal");
 const compositionArea = document.querySelector("#composition-area");
 const compositionMessage = document.querySelector("#composition-message");
 
@@ -51,7 +51,9 @@ const editModal = document.querySelector("#edit-modal");
 const editForm = document.querySelector("#edit-image-editing-form");
 const editEntryIdInput = document.querySelector("#edit-entry-id");
 const editEntryNameInput = document.querySelector("#edit-entry-name");
+const editNameWrapper = document.querySelector("#edit-entry-name").closest("label");
 const editTemplateInfoInput = document.querySelector("#edit-template-info");
+const editTemplateInfoWrapper = document.querySelector("#edit-template-info").closest("label");
 const editEditingInstructionsInput = document.querySelector("#edit-editing-instructions");
 const cancelEditModalBtn = document.querySelector("#cancel-edit-modal");
 const editMessage = document.querySelector("#edit-message");
@@ -190,16 +192,6 @@ const renderPoolItems = () => {
           </select>
         </td>
         <td>
-          <div class="star-rating">
-            ${[1, 2, 3]
-              .map(
-                (star) =>
-                  `<button type="button" class="star-btn ${Number(item.rating ?? 0) >= star ? "active" : ""}" data-action="set-rating" data-pool-id="${item.id}" data-rating="${star}" title="${star} Stern${star > 1 ? "e" : ""}">★</button>`
-              )
-              .join("")}
-          </div>
-        </td>
-        <td>
           <button type="button" class="icon-btn ghost" data-action="rename-item" data-pool-id="${item.id}" title="Datei umbenennen">✎</button>
           <button type="button" class="icon-btn ghost" data-action="clear-group" data-pool-id="${item.id}" title="Aus Gruppe lösen">⊘</button>
           <button type="button" class="icon-btn danger" data-action="delete-item" data-pool-id="${item.id}" title="Datei löschen">🗑</button>
@@ -213,9 +205,9 @@ const renderPoolItems = () => {
     <div class="table-wrap">
       <table class="pool-assets-table">
         <thead>
-          <tr><th>Vorschau</th><th>Name</th><th>Typ</th><th>Gruppe</th><th>Sterne</th><th>Aktion</th></tr>
+          <tr><th>Vorschau</th><th>Name</th><th>Typ</th><th>Gruppe</th><th>Aktion</th></tr>
         </thead>
-        <tbody>${mediaRows || '<tr><td colspan="6">Keine Medien für den aktuellen Filter.</td></tr>'}</tbody>
+        <tbody>${mediaRows || '<tr><td colspan="5">Keine Medien für den aktuellen Filter.</td></tr>'}</tbody>
       </table>
     </div>
     ${groupActionRows ? `<div class="table-wrap"><table><thead><tr><th colspan="5">Gruppen</th></tr></thead><tbody>${groupActionRows}</tbody></table></div>` : ""}
@@ -237,7 +229,7 @@ const buildComposerMarkup = () => {
           ${options}
         </select>
       </label>
-      <div id="composer-slots"><p>Wähle zuerst eine Vorlage.</p></div>
+      <div id="composer-slots" class="composer-slots-wrap"><p>Wähle zuerst eine Vorlage.</p></div>
       <button id="composer-next" type="button">Weiter</button>
     </div>
   `;
@@ -282,11 +274,13 @@ const renderComposerSlots = (templateId) => {
     .join("");
 
   slotsWrap.innerHTML = `
-    <label>
-      Infos zum Post (einmal pro Vorlage)
-      <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
-    </label>
-    ${slotMarkup}
+    <div class="composer-workspace">
+      <label class="composer-post-info">
+        Infos zum Post
+        <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
+      </label>
+      <div class="composer-slots-track">${slotMarkup}</div>
+    </div>
   `;
 };
 
@@ -514,7 +508,9 @@ const renderImageEditings = (rows) => {
             row.template_info ?? ""
           )}" data-editing-instructions="${encodeURIComponent(
             row.editing_instructions ?? ""
-          )}" data-active="${isActive}" title="Bearbeiten" ${isActive ? "disabled" : ""}>
+          )}" data-active="${isActive}" data-template="${Boolean(row.template)}" data-variable-template-text="${Boolean(
+            row.variable_template_text
+          )}" title="Bearbeiten" ${isActive ? "disabled" : ""}>
             ✎
           </button>
           <button class="icon-btn delete-btn danger" data-id="${row.id}" data-active="${isActive}" title="Löschen" ${
@@ -935,22 +931,6 @@ const setupEvents = () => {
       return;
     }
 
-    if (action === "set-rating") {
-      const poolId = actionBtn.dataset.poolId;
-      const rating = Number(actionBtn.dataset.rating);
-      if (!poolId || !Number.isFinite(rating)) {
-        return;
-      }
-      try {
-        await updateMediaAsset(poolId, { rating });
-        await loadPoolAssets();
-        message(poolMessage, `Bewertung auf ${rating} Stern${rating > 1 ? "e" : ""} gesetzt.`);
-      } catch (error) {
-        message(poolMessage, `Bewertung fehlgeschlagen: ${error.message}`, true);
-      }
-      return;
-    }
-
     if (action === "clear-group") {
       const poolId = actionBtn.dataset.poolId;
       try {
@@ -1045,7 +1025,7 @@ const setupEvents = () => {
     message(poolMessage, `Gruppe "${groupName}" erstellt. Du kannst Medien im Table zuweisen.`);
   });
 
-  createCompositionBtn.addEventListener("click", () => {
+  openComposerTemplateModalBtn.addEventListener("click", () => {
     const isOpen = !compositionArea.classList.contains("hidden");
     if (isOpen) {
       compositionArea.classList.add("hidden");
@@ -1406,10 +1386,14 @@ const setupEvents = () => {
         return;
       }
 
+      const hasTemplate = editBtn.dataset.template === "true";
+      const hasVariableTemplateText = editBtn.dataset.variableTemplateText === "true";
       editEntryIdInput.value = editBtn.dataset.id;
       editEntryNameInput.value = decodeURIComponent(editBtn.dataset.name ?? "");
       editTemplateInfoInput.value = decodeURIComponent(editBtn.dataset.templateInfo ?? "");
       editEditingInstructionsInput.value = decodeURIComponent(editBtn.dataset.editingInstructions ?? "");
+      editNameWrapper.classList.toggle("hidden", !hasTemplate);
+      editTemplateInfoWrapper.classList.toggle("hidden", !hasTemplate || !hasVariableTemplateText);
       message(editMessage, "");
       editModal.showModal();
       return;
@@ -1480,23 +1464,34 @@ const setupEvents = () => {
     const name = editEntryNameInput.value.trim();
     const templateInfo = editTemplateInfoInput.value.trim();
     const editingInstructions = editEditingInstructionsInput.value.trim();
+    const allowTemplateFields = !editNameWrapper.classList.contains("hidden");
+    const allowTemplateInfo = !editTemplateInfoWrapper.classList.contains("hidden");
 
     if (!Number.isFinite(id)) {
       message(editMessage, "Ungültige ID.", true);
       return;
     }
-    if (!name || !editingInstructions) {
-      message(editMessage, "Name und Bildbearbeitung sind Pflicht.", true);
+    if (!editingInstructions) {
+      message(editMessage, "Bildbearbeitung ist ein Pflichtfeld.", true);
+      return;
+    }
+    if (allowTemplateFields && !name) {
+      message(editMessage, "Bitte gib einen Namen ein.", true);
       return;
     }
 
     try {
       message(editMessage, "Speichern läuft …");
-      await updateImageEditingEntry(id, {
-        name,
-        template_info: templateInfo || null,
+      const payload = {
         editing_instructions: editingInstructions,
-      });
+      };
+      if (allowTemplateFields) {
+        payload.name = name;
+      }
+      if (allowTemplateInfo) {
+        payload.template_info = templateInfo || null;
+      }
+      await updateImageEditingEntry(id, payload);
       editModal.close();
       await loadImageEditings();
       message(imageEditingMessage, "Eintrag wurde bearbeitet.");
