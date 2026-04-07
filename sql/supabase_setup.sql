@@ -5,17 +5,26 @@ create table if not exists public.image_editings (
   template_img_url text,
   variable_template_text boolean not null default false,
   template_info text,
-  image_url text not null,
+  editing_instructions text not null,
+  image_url text,
   nano2_prompt text,
-  active boolean not null default true,
-  image boolean not null default true,
+  active boolean not null default false,
+  image boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 -- Migration bestehender Installationen (falls Tabelle/Spalten schon vorhanden sind)
 alter table public.image_editings add column if not exists image_url text;
 alter table public.image_editings add column if not exists nano2_prompt text;
-alter table public.image_editings add column if not exists active boolean not null default true;
+alter table public.image_editings add column if not exists active boolean not null default false;
+alter table public.image_editings add column if not exists editing_instructions text;
+
+update public.image_editings
+set editing_instructions = coalesce(editing_instructions, template_info, 'Keine Angabe')
+where editing_instructions is null;
+
+alter table public.image_editings alter column editing_instructions set not null;
+alter table public.image_editings alter column image_url drop not null;
 
 -- Falls alte Spalte banana2_prompt vorhanden ist, Werte übernehmen
 do $$
@@ -41,6 +50,16 @@ alter table public.image_editings
   drop constraint if exists image_editings_variable_text_requires_info,
   add constraint image_editings_variable_text_requires_info
   check (variable_template_text = false or coalesce(length(trim(template_info)), 0) > 0);
+
+alter table public.image_editings
+  drop constraint if exists image_editings_editing_instructions_required,
+  add constraint image_editings_editing_instructions_required
+  check (coalesce(length(trim(editing_instructions)), 0) > 0);
+
+-- Behebt "permission denied for schema public"
+grant usage on schema public to anon, authenticated;
+grant all on table public.image_editings to authenticated;
+grant usage, select on sequence public.image_editings_id_seq to authenticated;
 
 -- Row Level Security aktivieren
 alter table public.image_editings enable row level security;

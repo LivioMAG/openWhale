@@ -54,20 +54,23 @@
       <section id="image-editing" class="tab-panel card">
         <div class="panel-header">
           <h3>Bildbearbeitung</h3>
-          <button id="open-create-modal" class="plus" aria-label="Neue Bildbearbeitung anlegen">＋</button>
+          <div class="panel-actions">
+            <button id="refresh-image-editing" class="ghost" aria-label="Status aktualisieren">↻</button>
+            <button id="open-create-modal" class="plus" aria-label="Neue Bildbearbeitung anlegen">＋</button>
+          </div>
         </div>
-        <p>Erstelle und verwalte Bildbearbeitungs-Einträge inkl. Upload, Template-Logik und Start-Trigger.</p>
+        <p>Lege Bearbeitungsregeln an. Der Bearbeitungstext ist immer Pflicht, Template-Daten sind optional.</p>
 
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
+                <th>ID (Supabase)</th>
                 <th>Template</th>
                 <th>Template IMG</th>
                 <th>Variabler Text</th>
-                <th>Template Info</th>
-                <th>Bild</th>
+                <th>Template Textfelder</th>
+                <th>Bildbearbeitung</th>
                 <th>Status</th>
                 <th>Aktion</th>
               </tr>
@@ -92,37 +95,36 @@
       <h3>Neue Bildbearbeitung anlegen</h3>
 
       <label>
-        Bild hochladen
-        <input id="image-file" type="file" accept="image/*" required />
+        Bildbearbeitung (Pflicht)
+        <textarea id="editing-instructions" rows="4" required placeholder="Wie soll das spätere Bild bearbeitet werden?"></textarea>
       </label>
-      <img id="image-preview" class="image-preview hidden" alt="Vorschau des hochgeladenen Bildes" />
 
       <label class="check-row">
         <input id="is-template" type="checkbox" />
-        Als Template markieren
+        Ist es ein Template?
       </label>
 
       <div id="template-fields" class="stack hidden">
         <label>
-          Template-Image
+          Template hochladen
           <input id="template-img" type="file" accept="image/*" />
         </label>
         <img id="template-preview" class="image-preview hidden" alt="Vorschau des Template-Bildes" />
 
         <label class="check-row">
           <input id="template-has-variable-text" type="checkbox" />
-          Template hat variablen Text
+          Gibt es variablen Text?
         </label>
 
         <label id="template-info-wrapper" class="hidden">
-          Template Info
-          <textarea id="template-info" rows="3" placeholder="Beschreibe, welche Textteile editierbar/variabel sind"></textarea>
+          Variable Textfelder
+          <textarea id="template-info" rows="3" placeholder="Welche Teile sind variabel und welche fix?"></textarea>
         </label>
       </div>
 
       <div class="modal-actions">
         <button value="cancel" class="ghost" type="button" id="cancel-modal">Abbrechen</button>
-        <button value="default" type="submit">Speichern</button>
+        <button value="default" type="submit">Hinzufügen</button>
       </div>
       <p id="create-message" class="message" role="status" aria-live="polite"></p>
     </form>
