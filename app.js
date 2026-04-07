@@ -11,11 +11,13 @@ const tabs = document.querySelectorAll(".tab");
 const tabPanels = document.querySelectorAll(".tab-panel");
 const uploadPoolFilesBtn = document.querySelector("#upload-pool-files");
 const poolFileInput = document.querySelector("#pool-file-input");
+const poolGroupSelect = document.querySelector("#pool-group-select");
 const poolList = document.querySelector("#pool-list");
 const poolMessage = document.querySelector("#pool-message");
 const poolPreviewModal = document.querySelector("#pool-preview-modal");
 const poolPreviewTitle = document.querySelector("#pool-preview-title");
 const poolPreviewImage = document.querySelector("#pool-preview-image");
+const poolPreviewVideo = document.querySelector("#pool-preview-video");
 const closePoolPreviewBtn = document.querySelector("#close-pool-preview");
 const createCompositionBtn = document.querySelector("#create-composition");
 const compositionArea = document.querySelector("#composition-area");
@@ -113,71 +115,81 @@ const shortText = (value) => {
 
 const getPoolGroupLabel = (groupId) => {
   if (!groupId) {
-    return "Einzelbild";
+    return "Keine Gruppe";
   }
   return poolGroupNames[groupId] || `Gruppe ${groupId}`;
 };
 
-const buildPoolItemCard = (item) => `
-  <article class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
-    <button type="button" class="pool-preview-btn" data-action="preview-item" data-pool-id="${item.id}">
-      <img src="${item.url}" alt="${item.name}" loading="lazy" />
-    </button>
-    <div class="pool-item-actions">
-      <button type="button" class="ghost pool-mini-btn" data-action="rename-item" data-pool-id="${item.id}">Umbenennen</button>
-      <button type="button" class="danger pool-mini-btn" data-action="delete-item" data-pool-id="${item.id}">Löschen</button>
-    </div>
-    <div class="pool-meta">${item.name}</div>
-    <div class="pool-meta">ID: ${item.id}</div>
-    <div class="pool-meta">Group: ${getPoolGroupLabel(item.groupId)}</div>
-  </article>
-`;
+const getMediaTypeLabel = (type) => (type === "video" ? "Video" : "Foto");
+
+const buildPoolItemPreview = (item) => {
+  if (item.mediaType === "video") {
+    return `<video class="pool-thumb" src="${item.url}" muted preload="metadata"></video>`;
+  }
+  return `<img class="pool-thumb" src="${item.url}" alt="${item.name}" loading="lazy" />`;
+};
+
+const renderPoolGroupOptions = () => {
+  const options = Object.entries(poolGroupNames)
+    .map(([groupId, label]) => `<option value="${groupId}">${label}</option>`)
+    .join("");
+  poolGroupSelect.innerHTML = `<option value="">Neue/keine Gruppe</option>${options}`;
+};
 
 const renderPoolItems = () => {
   if (!poolItems.length) {
-    poolList.innerHTML = "<p>Noch keine Bilder im Pool.</p>";
+    poolList.innerHTML = "<p>Noch keine Medien vorhanden.</p>";
+    renderPoolGroupOptions();
     return;
   }
-
-  const grouped = poolItems.reduce(
-    (acc, item) => {
-      if (item.groupId) {
-        (acc.groups[item.groupId] ||= []).push(item);
-      } else {
-        acc.singles.push(item);
-      }
-      return acc;
-    },
-    { groups: {}, singles: [] }
-  );
-
-  const groupBlocks = Object.entries(grouped.groups)
+  const groupActionRows = Object.entries(poolGroupNames)
     .map(
-      ([groupId, items]) => `
-      <section class="pool-group">
-        <div class="pool-group-header">
-          <h4>${getPoolGroupLabel(groupId)} (${items.length})</h4>
-          <div class="pool-group-actions">
-            <button type="button" class="ghost pool-mini-btn" data-action="rename-group" data-group-id="${groupId}">Umbenennen</button>
-            <button type="button" class="danger pool-mini-btn" data-action="delete-group" data-group-id="${groupId}">Löschen</button>
-          </div>
-        </div>
-        <div class="pool-items">${items.map(buildPoolItemCard).join("")}</div>
-      </section>
+      ([groupId, label]) => `
+      <tr>
+        <td colspan="3"><strong>${label}</strong></td>
+        <td>${groupId}</td>
+        <td>
+          <button type="button" class="icon-btn ghost" data-action="rename-group" data-group-id="${groupId}" title="Gruppe umbenennen">✎</button>
+          <button type="button" class="icon-btn danger" data-action="delete-group" data-group-id="${groupId}" title="Gruppe löschen">🗑</button>
+        </td>
+      </tr>
     `
     )
     .join("");
 
-  const singleBlock = grouped.singles.length
-    ? `
-      <section class="pool-group">
-        <h4>Einzelbilder (${grouped.singles.length})</h4>
-        <div class="pool-items">${grouped.singles.map(buildPoolItemCard).join("")}</div>
-      </section>
+  const mediaRows = poolItems
+    .map(
+      (item) => `
+      <tr class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
+        <td>
+          <button type="button" class="pool-preview-btn" data-action="preview-item" data-pool-id="${item.id}">
+            ${buildPoolItemPreview(item)}
+          </button>
+        </td>
+        <td>${item.name}</td>
+        <td>${getMediaTypeLabel(item.mediaType)}</td>
+        <td>${getPoolGroupLabel(item.groupId)}</td>
+        <td>
+          <button type="button" class="icon-btn ghost" data-action="rename-item" data-pool-id="${item.id}" title="Datei umbenennen">✎</button>
+          <button type="button" class="icon-btn danger" data-action="delete-item" data-pool-id="${item.id}" title="Datei löschen">🗑</button>
+        </td>
+      </tr>
     `
-    : "";
+    )
+    .join("");
 
-  poolList.innerHTML = `${groupBlocks}${singleBlock}`;
+  poolList.innerHTML = `
+    <div class="table-wrap">
+      <table class="pool-assets-table">
+        <thead>
+          <tr><th>Vorschau</th><th>Name</th><th>Typ</th><th>Gruppe</th><th>Aktion</th></tr>
+        </thead>
+        <tbody>${mediaRows}</tbody>
+      </table>
+    </div>
+    ${groupActionRows ? `<div class="table-wrap"><table><thead><tr><th colspan="5">Gruppen</th></tr></thead><tbody>${groupActionRows}</tbody></table></div>` : ""}
+  `;
+  renderPoolGroupOptions();
 };
 
 const buildComposerMarkup = () => {
@@ -262,7 +274,7 @@ const handleAssignment = (slotKey, poolId) => {
   }
 
   preview.innerHTML = `
-    <img src="${poolItem.url}" alt="${poolItem.name}" loading="lazy" />
+    ${poolItem.mediaType === "video" ? `<video src="${poolItem.url}" controls muted preload="metadata"></video>` : `<img src="${poolItem.url}" alt="${poolItem.name}" loading="lazy" />`}
     <div class="pool-meta">Pool-ID: ${poolItem.id}</div>
     <div class="pool-meta">Group-ID: ${poolItem.groupId ?? "empty"}</div>
   `;
@@ -273,8 +285,16 @@ const openPoolPreview = (item) => {
     return;
   }
   poolPreviewTitle.textContent = item.name;
-  poolPreviewImage.src = item.url;
-  poolPreviewImage.alt = item.name;
+  const isVideo = item.mediaType === "video";
+  poolPreviewImage.classList.toggle("hidden", isVideo);
+  poolPreviewVideo.classList.toggle("hidden", !isVideo);
+  if (isVideo) {
+    poolPreviewVideo.src = item.url;
+    poolPreviewVideo.load();
+  } else {
+    poolPreviewImage.src = item.url;
+    poolPreviewImage.alt = item.name;
+  }
   poolPreviewModal.showModal();
 };
 
@@ -692,6 +712,64 @@ const deleteImageEditingEntry = async (entryId) => {
   }
 };
 
+const loadPoolAssets = async () => {
+  const { data, error } = await supabase.from("media_assets").select("*").order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  poolItems = (data ?? []).map((row) => ({
+    id: row.id,
+    groupId: row.group_id,
+    name: row.name,
+    url: row.file_url,
+    mediaType: row.media_type,
+  }));
+
+  poolGroupNames = {};
+  for (const row of data ?? []) {
+    if (row.group_id && row.group_name) {
+      poolGroupNames[row.group_id] = row.group_name;
+    }
+  }
+  renderPoolItems();
+};
+
+const createMediaAsset = async (payload) => {
+  const { error } = await supabase.from("media_assets").insert(payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const updateMediaAsset = async (assetId, payload) => {
+  const { error } = await supabase.from("media_assets").update(payload).eq("id", assetId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const renameMediaGroup = async (groupId, groupName) => {
+  const { error } = await supabase.from("media_assets").update({ group_name: groupName }).eq("group_id", groupId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const deleteMediaAsset = async (assetId) => {
+  const { error } = await supabase.from("media_assets").delete().eq("id", assetId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const deleteMediaGroup = async (groupId) => {
+  const { error } = await supabase.from("media_assets").delete().eq("group_id", groupId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 const openTextModal = (title, content) => {
   textViewTitle.textContent = title;
   textViewContent.textContent = content || "Kein Inhalt vorhanden.";
@@ -705,6 +783,11 @@ const openWorkspace = async (email) => {
   await loadImageEditingTemplateOptions();
   await loadContentTemplates();
   await loadImageEditings();
+  try {
+    await loadPoolAssets();
+  } catch (error) {
+    message(poolMessage, `Medien konnten nicht geladen werden: ${error.message}`, true);
+  }
 };
 
 const checkSession = async () => {
@@ -734,26 +817,28 @@ const setupEvents = () => {
       return;
     }
 
-    const sharedGroupId = files.length > 1 ? crypto.randomUUID().slice(0, 8) : null;
+    const selectedGroup = poolGroupSelect.value || null;
+    const sharedGroupId = selectedGroup || (files.length > 1 ? crypto.randomUUID().slice(0, 8) : null);
+    const sharedGroupName = sharedGroupId ? getPoolGroupLabel(sharedGroupId) : null;
     message(poolMessage, "Upload läuft …");
 
     try {
       for (const file of files) {
-        const imageUrl = await uploadImage(file, resolveBucketName("imageEditingBucket", "imageBucket"));
-        poolItems.unshift({
-          id: crypto.randomUUID().slice(0, 8),
-          groupId: sharedGroupId,
+        const fileUrl = await uploadImage(file, resolveBucketName("mediaBucket", "imageBucket"));
+        const mediaType = file.type.startsWith("video/") ? "video" : "image";
+        await createMediaAsset({
           name: file.name,
-          url: imageUrl,
+          media_type: mediaType,
+          file_url: fileUrl,
+          group_id: sharedGroupId,
+          group_name: sharedGroupName,
         });
       }
 
-      renderPoolItems();
+      await loadPoolAssets();
       message(
         poolMessage,
-        files.length > 1
-          ? `${files.length} Dateien als Gruppe ${sharedGroupId} hochgeladen.`
-          : "Datei als Einzelbild in den Pool geladen."
+        files.length > 1 ? `${files.length} Medien wurden hochgeladen.` : "Medium wurde hochgeladen."
       );
       poolFileInput.value = "";
     } catch (error) {
@@ -761,7 +846,7 @@ const setupEvents = () => {
     }
   });
 
-  poolList.addEventListener("click", (event) => {
+  poolList.addEventListener("click", async (event) => {
     const actionBtn = event.target.closest("[data-action]");
     if (!actionBtn) {
       return;
@@ -786,8 +871,13 @@ const setupEvents = () => {
         return;
       }
       item.name = newName.trim() || item.name;
-      renderPoolItems();
-      message(poolMessage, "Bildname wurde aktualisiert.");
+      try {
+        await updateMediaAsset(poolId, { name: item.name });
+        await loadPoolAssets();
+        message(poolMessage, "Dateiname wurde aktualisiert.");
+      } catch (error) {
+        message(poolMessage, `Umbenennen fehlgeschlagen: ${error.message}`, true);
+      }
       return;
     }
 
@@ -803,12 +893,14 @@ const setupEvents = () => {
         return;
       }
 
-      removePoolItem(poolId);
-      if (item.groupId && !poolItems.some((entry) => entry.groupId === item.groupId)) {
-        delete poolGroupNames[item.groupId];
+      try {
+        await deleteMediaAsset(poolId);
+        removePoolItem(poolId);
+        await loadPoolAssets();
+        message(poolMessage, "Medium wurde gelöscht.");
+      } catch (error) {
+        message(poolMessage, `Löschen fehlgeschlagen: ${error.message}`, true);
       }
-      renderPoolItems();
-      message(poolMessage, "Bild wurde gelöscht.");
       return;
     }
 
@@ -822,9 +914,14 @@ const setupEvents = () => {
       if (!newName) {
         return;
       }
-      poolGroupNames[groupId] = newName.trim() || currentName;
-      renderPoolItems();
-      message(poolMessage, "Gruppenname wurde aktualisiert.");
+      try {
+        const nextName = newName.trim() || currentName;
+        await renameMediaGroup(groupId, nextName);
+        await loadPoolAssets();
+        message(poolMessage, "Gruppenname wurde aktualisiert.");
+      } catch (error) {
+        message(poolMessage, `Gruppe konnte nicht umbenannt werden: ${error.message}`, true);
+      }
       return;
     }
 
@@ -839,14 +936,13 @@ const setupEvents = () => {
         return;
       }
 
-      const groupItems = poolItems.filter((entry) => entry.groupId === groupId);
-      for (const item of groupItems) {
-        removePoolItem(item.id);
+      try {
+        await deleteMediaGroup(groupId);
+        await loadPoolAssets();
+        message(poolMessage, `Gruppe "${groupName}" wurde gelöscht.`);
+      } catch (error) {
+        message(poolMessage, `Gruppe konnte nicht gelöscht werden: ${error.message}`, true);
       }
-      delete poolGroupNames[groupId];
-
-      renderPoolItems();
-      message(poolMessage, `Gruppe "${groupName}" wurde gelöscht.`);
     }
   });
 
@@ -960,7 +1056,10 @@ const setupEvents = () => {
     message(authMessage, "Abgemeldet.");
   });
 
-  closePoolPreviewBtn.addEventListener("click", () => poolPreviewModal.close());
+  closePoolPreviewBtn.addEventListener("click", () => {
+    poolPreviewVideo.pause();
+    poolPreviewModal.close();
+  });
 
   templateImgInput.addEventListener("change", () => setPreview(templateImgInput, templatePreview));
   isTemplateInput.addEventListener("change", syncTemplateVisibility);
@@ -971,6 +1070,7 @@ const setupEvents = () => {
     await loadImageEditings();
     await loadImageEditingTemplateOptions();
     await loadContentTemplates();
+    await loadPoolAssets();
     message(imageEditingMessage, "Status aktualisiert.");
   });
 
