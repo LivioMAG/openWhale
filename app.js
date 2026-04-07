@@ -18,6 +18,16 @@ const cancelModalBtn = document.querySelector("#cancel-modal");
 const createForm = document.querySelector("#create-image-editing-form");
 const createMessage = document.querySelector("#create-message");
 
+const imageFileInput = document.querySelector("#image-file");
+const imagePreview = document.querySelector("#image-preview");
+const isTemplateInput = document.querySelector("#is-template");
+const templateFields = document.querySelector("#template-fields");
+const templateImgInput = document.querySelector("#template-img");
+const templatePreview = document.querySelector("#template-preview");
+const templateHasVariableTextInput = document.querySelector("#template-has-variable-text");
+const templateInfoInput = document.querySelector("#template-info");
+const templateInfoWrapper = document.querySelector("#template-info-wrapper");
+
 let supabase;
 let appConfig;
 
@@ -26,7 +36,44 @@ const message = (element, text, isError = false) => {
   element.classList.toggle("error", Boolean(isError));
 };
 
-const formatBool = (value) => (value ? "true" : "false");
+const formatBool = (value) => (value ? "Ja" : "Nein");
+const hasPromptResult = (row) => Boolean((row.nano2_prompt ?? row.banana2_prompt ?? "").trim());
+
+const setPreview = (input, imgEl) => {
+  const file = input.files?.[0];
+  if (!file) {
+    imgEl.src = "";
+    imgEl.classList.add("hidden");
+    return;
+  }
+
+  imgEl.src = URL.createObjectURL(file);
+  imgEl.classList.remove("hidden");
+};
+
+const syncTemplateVisibility = () => {
+  const isTemplate = isTemplateInput.checked;
+  templateFields.classList.toggle("hidden", !isTemplate);
+
+  if (!isTemplate) {
+    templateImgInput.value = "";
+    templatePreview.src = "";
+    templatePreview.classList.add("hidden");
+    templateHasVariableTextInput.checked = false;
+    templateInfoInput.value = "";
+  }
+
+  syncTemplateInfoVisibility();
+};
+
+const syncTemplateInfoVisibility = () => {
+  const showTemplateInfo = isTemplateInput.checked && templateHasVariableTextInput.checked;
+  templateInfoWrapper.classList.toggle("hidden", !showTemplateInfo);
+
+  if (!showTemplateInfo) {
+    templateInfoInput.value = "";
+  }
+};
 
 const renderImageEditings = (rows) => {
   if (!rows.length) {
@@ -35,31 +82,55 @@ const renderImageEditings = (rows) => {
   }
 
   imageEditingBody.innerHTML = rows
-    .map(
-      (row) => `
+    .map((row) => {
+      const showLoading = row.active && !hasPromptResult(row);
+      return `
       <tr>
         <td>${row.id}</td>
         <td>${formatBool(row.template)}</td>
         <td>${
           row.template_img_url
-            ? `<a href="${row.template_img_url}" target="_blank" rel="noopener">Bild öffnen</a>`
+            ? `<a href="${row.template_img_url}" target="_blank" rel="noopener">Template öffnen</a>`
             : "-"
         }</td>
         <td>${formatBool(row.variable_template_text)}</td>
         <td>${row.template_info ?? "-"}</td>
-        <td>${row.image_editing ?? "-"}</td>
-        <td>${row.banana2_prompt ?? "-"}</td>
-        <td>${formatBool(row.image)}</td>
+        <td>${row.image_url ? `<a href="${row.image_url}" target="_blank" rel="noopener">Bild öffnen</a>` : "-"}</td>
+        <td>${showLoading ? "⏳ In Bearbeitung" : "Fertig"}</td>
+        <td>
+          <button class="start-editing-btn" data-id="${row.id}" ${showLoading ? "disabled" : ""}>
+            ${showLoading ? "Läuft …" : "Bildbearbeitung starten"}
+          </button>
+        </td>
       </tr>
-    `,
-    )
+    `;
+    })
     .join("");
+};
+
+const reconcileActiveStates = async (rows) => {
+  const updates = rows
+    .map((row) => {
+      const shouldBeActive = !hasPromptResult(row);
+      if (row.active === shouldBeActive) {
+        return null;
+      }
+
+      return supabase.from("image_editings").update({ active: shouldBeActive }).eq("id", row.id);
+    })
+    .filter(Boolean);
+
+  if (!updates.length) {
+    return;
+  }
+
+  await Promise.all(updates);
 };
 
 const loadImageEditings = async () => {
   const { data, error } = await supabase
     .from("image_editings")
-    .select("id, template, template_img_url, variable_template_text, template_info, image_editing, banana2_prompt, image")
+    .select("*")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -67,22 +138,63 @@ const loadImageEditings = async () => {
     return;
   }
 
-  renderImageEditings(data ?? []);
+  const rows = data ?? [];
+  await reconcileActiveStates(rows);
+
+  const hydratedRows = rows.map((row) => ({ ...row, active: !hasPromptResult(row) }));
+  renderImageEditings(hydratedRows);
   message(imageEditingMessage, "");
 };
 
-const uploadTemplateImage = async (file) => {
+const uploadImage = async (file, bucketName) => {
   const safeName = `${crypto.randomUUID()}-${file.name.replace(/\s+/g, "_")}`;
   const { error } = await supabase.storage
-    .from(appConfig.storage.templateBucket)
+    .from(bucketName)
     .upload(safeName, file, { upsert: false });
 
   if (error) {
-    throw new Error(`Template-Upload fehlgeschlagen: ${error.message}`);
+    throw new Error(`Upload fehlgeschlagen (${bucketName}): ${error.message}`);
   }
 
-  const { data } = supabase.storage.from(appConfig.storage.templateBucket).getPublicUrl(safeName);
+  const { data } = supabase.storage.from(bucketName).getPublicUrl(safeName);
   return data.publicUrl;
+};
+
+const triggerImageEditing = async (entryId) => {
+  const { data: entry, error } = await supabase
+    .from("image_editings")
+    .select("*")
+    .eq("id", entryId)
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const webhookPayload = {
+    id: entry.id,
+    imageUrl: entry.image_url,
+    template: entry.template,
+    templateImageUrl: entry.template_img_url,
+    templateHasVariableText: entry.variable_template_text,
+    templateInfo: entry.template_info,
+  };
+
+  const webhookResponse = await fetch(appConfig.webhooks.n8nImageGeneration, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(webhookPayload),
+  });
+
+  if (!webhookResponse.ok) {
+    throw new Error(`Webhook-Fehler: ${webhookResponse.status} ${webhookResponse.statusText}`);
+  }
+
+  const { error: updateError } = await supabase.from("image_editings").update({ active: true }).eq("id", entryId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 };
 
 const openWorkspace = async (email) => {
@@ -137,8 +249,18 @@ const setupEvents = () => {
     message(authMessage, "Abgemeldet.");
   });
 
+  imageFileInput.addEventListener("change", () => setPreview(imageFileInput, imagePreview));
+  templateImgInput.addEventListener("change", () => setPreview(templateImgInput, templatePreview));
+  isTemplateInput.addEventListener("change", syncTemplateVisibility);
+  templateHasVariableTextInput.addEventListener("change", syncTemplateInfoVisibility);
+
   openCreateModalBtn.addEventListener("click", () => {
     createForm.reset();
+    imagePreview.src = "";
+    imagePreview.classList.add("hidden");
+    templatePreview.src = "";
+    templatePreview.classList.add("hidden");
+    syncTemplateVisibility();
     message(createMessage, "");
     createModal.showModal();
   });
@@ -148,39 +270,45 @@ const setupEvents = () => {
   createForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const template = document.querySelector("#template").checked;
-    const templateImgFile = document.querySelector("#template-img").files[0];
-    const variableTemplateText = document.querySelector("#variable-template-text").checked;
-    const templateInfo = document.querySelector("#template-info").value.trim();
-    const imageEditing = document.querySelector("#image-editing-description").value.trim();
-    const banana2Prompt = document.querySelector("#banana2-prompt").value.trim();
+    const imageFile = imageFileInput.files[0];
+    const isTemplate = isTemplateInput.checked;
+    const templateImgFile = templateImgInput.files[0];
+    const templateHasVariableText = templateHasVariableTextInput.checked;
+    const templateInfo = templateInfoInput.value.trim();
 
-    if (template && !templateImgFile) {
-      message(createMessage, "Wenn Template=true, bitte ein Template-Bild auswählen.", true);
+    if (!imageFile) {
+      message(createMessage, "Bitte ein Bild hochladen.", true);
       return;
     }
 
-    if (variableTemplateText && !templateInfo) {
-      message(createMessage, "Bei variablem Template Text ist Template Info erforderlich.", true);
+    if (isTemplate && !templateImgFile) {
+      message(createMessage, "Wenn isTemplate=true, bitte ein Template-Image auswählen.", true);
+      return;
+    }
+
+    if (isTemplate && templateHasVariableText && !templateInfo) {
+      message(createMessage, "Bei variablem Template-Text ist templateInfo erforderlich.", true);
       return;
     }
 
     try {
       message(createMessage, "Speichern läuft …");
+
+      const imageUrl = await uploadImage(imageFile, appConfig.storage.imageBucket);
       let templateImgUrl = null;
 
-      if (template && templateImgFile) {
-        templateImgUrl = await uploadTemplateImage(templateImgFile);
+      if (isTemplate && templateImgFile) {
+        templateImgUrl = await uploadImage(templateImgFile, appConfig.storage.templateBucket);
       }
 
       const { error } = await supabase.from("image_editings").insert({
-        template,
+        template: isTemplate,
         template_img_url: templateImgUrl,
-        variable_template_text: variableTemplateText,
-        template_info: templateInfo || null,
-        image_editing: imageEditing,
-        banana2_prompt: banana2Prompt || null,
+        variable_template_text: isTemplate ? templateHasVariableText : false,
+        template_info: isTemplate && templateHasVariableText ? templateInfo : null,
+        image_url: imageUrl,
         image: true,
+        active: true,
       });
 
       if (error) {
@@ -192,6 +320,30 @@ const setupEvents = () => {
       await loadImageEditings();
     } catch (err) {
       message(createMessage, err.message, true);
+    }
+  });
+
+  imageEditingBody.addEventListener("click", async (event) => {
+    const targetButton = event.target.closest(".start-editing-btn");
+    if (!targetButton) {
+      return;
+    }
+
+    const id = Number(targetButton.dataset.id);
+    if (!Number.isFinite(id)) {
+      return;
+    }
+
+    targetButton.disabled = true;
+
+    try {
+      message(imageEditingMessage, "Bildbearbeitung wird gestartet …");
+      await triggerImageEditing(id);
+      await loadImageEditings();
+      message(imageEditingMessage, "Webhook ausgelöst. Bearbeitung läuft.");
+    } catch (err) {
+      targetButton.disabled = false;
+      message(imageEditingMessage, `Start fehlgeschlagen: ${err.message}`, true);
     }
   });
 

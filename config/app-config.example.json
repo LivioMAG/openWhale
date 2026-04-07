@@ -4,7 +4,8 @@
     "anonKey": "sb_publishable_SfXH8TnNEWfdxNxMKnbL4Q_1mufSNeI"
   },
   "storage": {
-    "templateBucket": "template-images"
+    "templateBucket": "template-images",
+    "imageBucket": "image-editing-images"
   },
   "webhooks": {
     "n8nImageGeneration": "https://n8n.example.com/webhook/image-generation"
