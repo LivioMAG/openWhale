@@ -96,10 +96,11 @@
                 <th>Caption</th>
                 <th>Hashtags</th>
                 <th>Speziell beachten</th>
+                <th>Aktion</th>
               </tr>
             </thead>
             <tbody id="content-templates-body">
-              <tr><td colspan="6">Keine Vorlagen vorhanden.</td></tr>
+              <tr><td colspan="7">Keine Vorlagen vorhanden.</td></tr>
             </tbody>
           </table>
         </div>
@@ -284,7 +285,8 @@
 
   <dialog id="template-modal">
     <form id="template-form" class="stack" method="dialog">
-      <h3>Neue Vorlage</h3>
+      <h3 id="template-modal-title">Neue Vorlage</h3>
+      <input id="template-entry-id" type="hidden" />
 
       <label>
         Vorlagenname
@@ -337,7 +339,7 @@
 
       <div class="modal-actions">
         <button value="cancel" class="ghost" type="button" id="cancel-template-modal">Abbrechen</button>
-        <button value="default" type="submit">Vorlage speichern</button>
+        <button id="template-submit-btn" value="default" type="submit">Vorlage speichern</button>
       </div>
       <p id="template-form-message" class="message" role="status" aria-live="polite"></p>
     </form>
