@@ -8,7 +8,9 @@
     "imageBucket": "image-editing-images"
   },
   "webhooks": {
-    "n8nImageGeneration": "https://n8n.example.com/webhook/image-generation"
+    "n8nImageGeneration": "https://n8n.example.com/webhook/image-generation",
+    "n8nTemplatePostGenerate": "https://n8n.example.com/webhook/template-post-generate",
+    "n8nTemplateCarouselGenerate": "https://n8n.example.com/webhook/template-carousel-generate"
   },
   "polling": {
     "imageEditingStatusMs": 10000
