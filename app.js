@@ -84,6 +84,8 @@ const specialRequirementsWrapper = document.querySelector("#special-requirements
 const specialRequirementsInput = document.querySelector("#special-requirements");
 const cancelTemplateModalBtn = document.querySelector("#cancel-template-modal");
 const templateFormMessage = document.querySelector("#template-form-message");
+const postingBody = document.querySelector("#posting-body");
+const postingMessage = document.querySelector("#posting-message");
 
 let supabase;
 let appConfig;
@@ -119,6 +121,14 @@ const shortText = (value) => {
   }
 
   return `${value.slice(0, 67)}…`;
+};
+
+const shortJson = (value) => {
+  if (!value) {
+    return "-";
+  }
+  const text = JSON.stringify(value);
+  return shortText(text);
 };
 
 const getPoolGroupLabel = (groupId) => {
@@ -403,7 +413,7 @@ const removePoolItem = (poolId) => {
   return true;
 };
 
-const validateComposer = () => {
+const validateComposer = async () => {
   if (!activeComposer) {
     message(compositionMessage, "Bitte zuerst auf Plus klicken und eine Vorlage wählen.", true);
     return;
@@ -458,6 +468,11 @@ const validateComposer = () => {
     media_items: usedSlots,
   };
 
+  const imageEditingImageMap = usedSlots.map((entry) => ({
+    image_url: entry.file_url,
+    image_editing_id: entry.image_editing_id,
+  }));
+
   const prettySummary = [
     `Vorlage: ${summaryPayload.template.name} (#${summaryPayload.template.id})`,
     `Typ: ${summaryPayload.is_carousel ? "Karussell" : "Post"}`,
@@ -470,8 +485,27 @@ const validateComposer = () => {
     JSON.stringify(summaryPayload, null, 2),
   ].join("\n");
 
-  openTextModal("Zusammenfassung für Weiter", prettySummary);
-  message(compositionMessage, "Prüfung erfolgreich. Zusammenfassung wurde geöffnet.");
+  try {
+    await createPostingJob({
+      content_template_id: summaryPayload.template.id,
+      content_template_name: summaryPayload.template.name,
+      content_type: summaryPayload.content_type,
+      post_input: summaryPayload.post_info,
+      units: summaryPayload.media_items,
+      image_editing_image_map: imageEditingImageMap,
+      payload: summaryPayload,
+      isDone: false,
+    });
+    await loadPostingJobs();
+    setTab("posting");
+    openTextModal("Zusammenfassung für Weiter", prettySummary);
+    message(
+      compositionMessage,
+      'Datensatz wurde in Supabase gespeichert (isDone=false) und unter "Posting" aufgelistet.'
+    );
+  } catch (error) {
+    message(compositionMessage, `Speichern in Posting fehlgeschlagen: ${error.message}`, true);
+  }
 };
 
 const getStatusLabel = (row) => {
@@ -481,6 +515,8 @@ const getStatusLabel = (row) => {
 
   return hasPromptResult(row) ? "Scharf" : "Online (nicht scharf)";
 };
+
+const getPostingStatusLabel = (row) => (row.isDone ? "AI fertig" : "AI arbeitet …");
 
 const setPreview = (input, imgEl) => {
   const file = input.files?.[0];
@@ -731,6 +767,46 @@ const renderContentTemplates = (rows) => {
     .join("");
 };
 
+const renderPostingJobs = (rows) => {
+  if (!rows.length) {
+    postingBody.innerHTML = `<tr><td colspan="8">Noch keine Posting-Einträge vorhanden.</td></tr>`;
+    return;
+  }
+
+  postingBody.innerHTML = rows
+    .map((row) => {
+      const templateName = row.content_template_name ?? `Vorlage #${row.content_template_id}`;
+      const units = Array.isArray(row.units) ? row.units : [];
+      const unitNames = units.map((unit) => `${unit.position}. ${unit.image_editing_name || unit.file_name || "-"}`).join(" | ");
+      const imageMap = Array.isArray(row.image_editing_image_map) ? row.image_editing_image_map : [];
+      return `
+      <tr>
+        <td>${row.id}</td>
+        <td>${templateName}</td>
+        <td>${row.content_type === "carousel" ? "Karussell" : "Post"}</td>
+        <td>
+          <button class="text-view-btn ghost" data-kind="Post Input" data-value="${encodeURIComponent(
+            row.post_input ?? ""
+          )}" title="Text komplett anzeigen">${shortText(row.post_input)}</button>
+        </td>
+        <td>
+          <button class="text-view-btn ghost" data-kind="Units" data-value="${encodeURIComponent(
+            JSON.stringify(units, null, 2)
+          )}" title="Units anzeigen">${shortText(unitNames || shortJson(units))}</button>
+        </td>
+        <td>
+          <button class="text-view-btn ghost" data-kind="Image Map" data-value="${encodeURIComponent(
+            JSON.stringify(imageMap, null, 2)
+          )}" title="Map anzeigen">${shortJson(imageMap)}</button>
+        </td>
+        <td>${getPostingStatusLabel(row)}</td>
+        <td>${new Date(row.created_at).toLocaleString("de-DE")}</td>
+      </tr>
+    `;
+    })
+    .join("");
+};
+
 const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
@@ -821,6 +897,13 @@ const createContentTemplate = async (payload) => {
   }
 };
 
+const createPostingJob = async (payload) => {
+  const { error } = await supabase.from("posting_jobs").insert(payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 const setEntryActiveState = async (entryId, nextActive) => {
   const { error } = await supabase.from("image_editings").update({ active: nextActive }).eq("id", entryId);
 
@@ -865,6 +948,16 @@ const loadPoolAssets = async () => {
     }
   }
   renderPoolItems();
+};
+
+const loadPostingJobs = async () => {
+  const { data, error } = await supabase.from("posting_jobs").select("*").order("created_at", { ascending: false });
+  if (error) {
+    message(postingMessage, `Posting-Liste konnte nicht geladen werden: ${error.message}`, true);
+    return;
+  }
+  renderPostingJobs(data ?? []);
+  message(postingMessage, "");
 };
 
 const createMediaAsset = async (payload) => {
@@ -920,6 +1013,7 @@ const openWorkspace = async (email) => {
   } catch (error) {
     message(poolMessage, `Medien konnten nicht geladen werden: ${error.message}`, true);
   }
+  await loadPostingJobs();
 };
 
 const checkSession = async () => {
@@ -1287,6 +1381,7 @@ const setupEvents = () => {
     await loadImageEditingTemplateOptions();
     await loadContentTemplates();
     await loadPoolAssets();
+    await loadPostingJobs();
     message(imageEditingMessage, "Status aktualisiert.");
   });
 
@@ -1594,6 +1689,17 @@ const setupEvents = () => {
     }
   });
 
+  postingBody.addEventListener("click", (event) => {
+    const textViewBtn = event.target.closest(".text-view-btn");
+    if (!textViewBtn) {
+      return;
+    }
+    openTextModal(
+      decodeURIComponent(textViewBtn.dataset.kind ?? "Text"),
+      decodeURIComponent(textViewBtn.dataset.value ?? "")
+    );
+  });
+
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
   closeTextViewBtn.addEventListener("click", () => textViewModal.close());
 
@@ -1660,6 +1766,7 @@ const setupEvents = () => {
       if (!workspace.classList.contains("hidden")) {
         loadImageEditings();
         loadContentTemplates();
+        loadPostingJobs();
       }
     }, appConfig.polling.imageEditingStatusMs);
   }

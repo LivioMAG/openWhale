@@ -144,8 +144,32 @@
       </section>
 
       <section id="posting" class="tab-panel card">
-        <h3>Posting (Platzhalter)</h3>
-        <p>Dieser Bereich ist vorbereitet. Die funktionale Umsetzung folgt in einem späteren Schritt.</p>
+        <div class="panel-header">
+          <div>
+            <h3>Posting</h3>
+            <p>Hier werden Datensätze aus "Weiter" gespeichert und der AI-Status angezeigt.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Vorlage</th>
+                <th>Typ</th>
+                <th>Post Input</th>
+                <th>Units</th>
+                <th>Image-Datei ↔ Bildbearbeitung</th>
+                <th>AI Status</th>
+                <th>Erstellt</th>
+              </tr>
+            </thead>
+            <tbody id="posting-body">
+              <tr><td colspan="8">Noch keine Posting-Einträge vorhanden.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="posting-message" class="message" role="status" aria-live="polite"></p>
       </section>
     </section>
   </main>
