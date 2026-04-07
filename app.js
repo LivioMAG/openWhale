@@ -13,6 +13,10 @@ const uploadPoolFilesBtn = document.querySelector("#upload-pool-files");
 const poolFileInput = document.querySelector("#pool-file-input");
 const poolList = document.querySelector("#pool-list");
 const poolMessage = document.querySelector("#pool-message");
+const poolPreviewModal = document.querySelector("#pool-preview-modal");
+const poolPreviewTitle = document.querySelector("#pool-preview-title");
+const poolPreviewImage = document.querySelector("#pool-preview-image");
+const closePoolPreviewBtn = document.querySelector("#close-pool-preview");
 const createCompositionBtn = document.querySelector("#create-composition");
 const compositionArea = document.querySelector("#composition-area");
 const compositionMessage = document.querySelector("#composition-message");
@@ -79,6 +83,7 @@ let imageEditingTemplateOptions = [];
 let carouselSelection = [];
 let contentTemplateOptions = [];
 let poolItems = [];
+let poolGroupNames = {};
 let activeComposer = null;
 
 const resolveBucketName = (primaryKey, fallbackKey) => {
@@ -106,11 +111,25 @@ const shortText = (value) => {
   return `${value.slice(0, 67)}…`;
 };
 
+const getPoolGroupLabel = (groupId) => {
+  if (!groupId) {
+    return "Einzelbild";
+  }
+  return poolGroupNames[groupId] || `Gruppe ${groupId}`;
+};
+
 const buildPoolItemCard = (item) => `
   <article class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
-    <img src="${item.url}" alt="${item.name}" loading="lazy" />
+    <button type="button" class="pool-preview-btn" data-action="preview-item" data-pool-id="${item.id}">
+      <img src="${item.url}" alt="${item.name}" loading="lazy" />
+    </button>
+    <div class="pool-item-actions">
+      <button type="button" class="ghost pool-mini-btn" data-action="rename-item" data-pool-id="${item.id}">Umbenennen</button>
+      <button type="button" class="danger pool-mini-btn" data-action="delete-item" data-pool-id="${item.id}">Löschen</button>
+    </div>
+    <div class="pool-meta">${item.name}</div>
     <div class="pool-meta">ID: ${item.id}</div>
-    <div class="pool-meta">Group: ${item.groupId ?? "empty"}</div>
+    <div class="pool-meta">Group: ${getPoolGroupLabel(item.groupId)}</div>
   </article>
 `;
 
@@ -136,7 +155,13 @@ const renderPoolItems = () => {
     .map(
       ([groupId, items]) => `
       <section class="pool-group">
-        <h4>Gruppe ${groupId} (${items.length})</h4>
+        <div class="pool-group-header">
+          <h4>${getPoolGroupLabel(groupId)} (${items.length})</h4>
+          <div class="pool-group-actions">
+            <button type="button" class="ghost pool-mini-btn" data-action="rename-group" data-group-id="${groupId}">Umbenennen</button>
+            <button type="button" class="danger pool-mini-btn" data-action="delete-group" data-group-id="${groupId}">Löschen</button>
+          </div>
+        </div>
         <div class="pool-items">${items.map(buildPoolItemCard).join("")}</div>
       </section>
     `
@@ -241,6 +266,38 @@ const handleAssignment = (slotKey, poolId) => {
     <div class="pool-meta">Pool-ID: ${poolItem.id}</div>
     <div class="pool-meta">Group-ID: ${poolItem.groupId ?? "empty"}</div>
   `;
+};
+
+const openPoolPreview = (item) => {
+  if (!item) {
+    return;
+  }
+  poolPreviewTitle.textContent = item.name;
+  poolPreviewImage.src = item.url;
+  poolPreviewImage.alt = item.name;
+  poolPreviewModal.showModal();
+};
+
+const removePoolItem = (poolId) => {
+  const next = poolItems.filter((item) => item.id !== poolId);
+  if (next.length === poolItems.length) {
+    return false;
+  }
+
+  poolItems = next;
+  if (activeComposer) {
+    for (const [slotKey, assignment] of Object.entries(activeComposer.assignments)) {
+      if (assignment?.poolId === poolId) {
+        delete activeComposer.assignments[slotKey];
+        const preview = compositionArea.querySelector(`[data-slot-preview="${slotKey}"]`);
+        if (preview) {
+          preview.textContent = "Kein Bild zugewiesen.";
+        }
+      }
+    }
+  }
+
+  return true;
 };
 
 const validateComposer = () => {
@@ -704,6 +761,95 @@ const setupEvents = () => {
     }
   });
 
+  poolList.addEventListener("click", (event) => {
+    const actionBtn = event.target.closest("[data-action]");
+    if (!actionBtn) {
+      return;
+    }
+
+    const action = actionBtn.dataset.action;
+    if (action === "preview-item") {
+      const poolId = actionBtn.dataset.poolId;
+      const item = poolItems.find((entry) => entry.id === poolId);
+      openPoolPreview(item);
+      return;
+    }
+
+    if (action === "rename-item") {
+      const poolId = actionBtn.dataset.poolId;
+      const item = poolItems.find((entry) => entry.id === poolId);
+      if (!item) {
+        return;
+      }
+      const newName = window.prompt("Neuer Bildname", item.name);
+      if (!newName) {
+        return;
+      }
+      item.name = newName.trim() || item.name;
+      renderPoolItems();
+      message(poolMessage, "Bildname wurde aktualisiert.");
+      return;
+    }
+
+    if (action === "delete-item") {
+      const poolId = actionBtn.dataset.poolId;
+      const item = poolItems.find((entry) => entry.id === poolId);
+      if (!item) {
+        return;
+      }
+
+      const confirmed = window.confirm(`Bild "${item.name}" wirklich löschen?`);
+      if (!confirmed) {
+        return;
+      }
+
+      removePoolItem(poolId);
+      if (item.groupId && !poolItems.some((entry) => entry.groupId === item.groupId)) {
+        delete poolGroupNames[item.groupId];
+      }
+      renderPoolItems();
+      message(poolMessage, "Bild wurde gelöscht.");
+      return;
+    }
+
+    if (action === "rename-group") {
+      const groupId = actionBtn.dataset.groupId;
+      if (!groupId) {
+        return;
+      }
+      const currentName = getPoolGroupLabel(groupId);
+      const newName = window.prompt("Neuer Gruppenname", currentName);
+      if (!newName) {
+        return;
+      }
+      poolGroupNames[groupId] = newName.trim() || currentName;
+      renderPoolItems();
+      message(poolMessage, "Gruppenname wurde aktualisiert.");
+      return;
+    }
+
+    if (action === "delete-group") {
+      const groupId = actionBtn.dataset.groupId;
+      if (!groupId) {
+        return;
+      }
+      const groupName = getPoolGroupLabel(groupId);
+      const confirmed = window.confirm(`Gruppe "${groupName}" mit allen Bildern löschen?`);
+      if (!confirmed) {
+        return;
+      }
+
+      const groupItems = poolItems.filter((entry) => entry.groupId === groupId);
+      for (const item of groupItems) {
+        removePoolItem(item.id);
+      }
+      delete poolGroupNames[groupId];
+
+      renderPoolItems();
+      message(poolMessage, `Gruppe "${groupName}" wurde gelöscht.`);
+    }
+  });
+
   createCompositionBtn.addEventListener("click", () => {
     if (!contentTemplateOptions.length) {
       message(compositionMessage, "Keine Vorlagen vorhanden. Bitte erst unter 'Vorlagen' anlegen.", true);
@@ -813,6 +959,8 @@ const setupEvents = () => {
     loginScreen.classList.remove("hidden");
     message(authMessage, "Abgemeldet.");
   });
+
+  closePoolPreviewBtn.addEventListener("click", () => poolPreviewModal.close());
 
   templateImgInput.addEventListener("change", () => setPreview(templateImgInput, templatePreview));
   isTemplateInput.addEventListener("change", syncTemplateVisibility);
