@@ -1,6 +1,7 @@
 -- Tabelle für Bildbearbeitungs-Einträge
 create table if not exists public.image_editings (
   id bigint generated always as identity primary key,
+  name text not null default 'Neuer Eintrag',
   template boolean not null default false,
   template_img_url text,
   variable_template_text boolean not null default false,
@@ -18,12 +19,18 @@ alter table public.image_editings add column if not exists image_url text;
 alter table public.image_editings add column if not exists nano2_prompt text;
 alter table public.image_editings add column if not exists active boolean not null default false;
 alter table public.image_editings add column if not exists editing_instructions text;
+alter table public.image_editings add column if not exists name text;
 
 update public.image_editings
 set editing_instructions = coalesce(editing_instructions, template_info, 'Keine Angabe')
 where editing_instructions is null;
 
+update public.image_editings
+set name = coalesce(nullif(trim(name), ''), 'Eintrag #' || id::text)
+where name is null or trim(name) = '';
+
 alter table public.image_editings alter column editing_instructions set not null;
+alter table public.image_editings alter column name set not null;
 alter table public.image_editings alter column image_url drop not null;
 
 -- Falls alte Spalte banana2_prompt vorhanden ist, Werte übernehmen
@@ -55,6 +62,11 @@ alter table public.image_editings
   drop constraint if exists image_editings_editing_instructions_required,
   add constraint image_editings_editing_instructions_required
   check (coalesce(length(trim(editing_instructions)), 0) > 0);
+
+alter table public.image_editings
+  drop constraint if exists image_editings_name_required,
+  add constraint image_editings_name_required
+  check (coalesce(length(trim(name)), 0) > 0);
 
 -- Behebt "permission denied for schema public"
 grant usage on schema public to anon, authenticated;
