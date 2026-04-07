@@ -1,0 +1,15 @@
+{
+  "supabase": {
+    "url": "https://YOUR-PROJECT.supabase.co",
+    "anonKey": "YOUR_SUPABASE_ANON_KEY"
+  },
+  "storage": {
+    "templateBucket": "template-images"
+  },
+  "webhooks": {
+    "n8nImageGeneration": "https://n8n.example.com/webhook/image-generation"
+  },
+  "polling": {
+    "imageEditingStatusMs": 10000
+  }
+}

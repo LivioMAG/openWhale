@@ -1,11 +1,132 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hallo Welt</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Creative Workflow App</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>hallo welt</h1>
+  <main class="app-shell">
+    <section id="login-screen" class="card auth-card">
+      <h1>Creative Workflow</h1>
+      <p class="subtitle">Bitte mit E-Mail und Passwort anmelden.</p>
+      <form id="login-form" class="stack">
+        <label>
+          E-Mail
+          <input id="email" type="email" required placeholder="name@beispiel.de" />
+        </label>
+        <label>
+          Passwort
+          <input id="password" type="password" required minlength="6" />
+        </label>
+        <button type="submit">Login</button>
+      </form>
+      <p id="auth-message" class="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="workspace" class="hidden">
+      <header class="topbar">
+        <div>
+          <h2>Dashboard</h2>
+          <p id="user-email" class="subtitle"></p>
+        </div>
+        <button id="logout-btn" class="ghost">Logout</button>
+      </header>
+
+      <nav class="tabs" aria-label="Hauptnavigation">
+        <button class="tab active" data-tab="pool">Mein Pool</button>
+        <button class="tab" data-tab="templates">Vorlagen</button>
+        <button class="tab" data-tab="image-editing">Bildbearbeitung</button>
+        <button class="tab" data-tab="video-editing">Videobearbeitung</button>
+      </nav>
+
+      <section id="pool" class="tab-panel active card">
+        <h3>Mein Pool</h3>
+        <p>Hier werden später generierte und hochgeladene Assets zentral gesammelt.</p>
+      </section>
+
+      <section id="templates" class="tab-panel card">
+        <h3>Vorlagen</h3>
+        <p>Hier werden wiederverwendbare Bildvorlagen angezeigt und verwaltet.</p>
+      </section>
+
+      <section id="image-editing" class="tab-panel card">
+        <div class="panel-header">
+          <h3>Bildbearbeitung</h3>
+          <button id="open-create-modal" class="plus" aria-label="Neue Bildbearbeitung anlegen">＋</button>
+        </div>
+        <p>Erstelle und verwalte Bildbearbeitungs-Vorlagen inklusive Template-Upload und Prompt-Daten.</p>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Template</th>
+                <th>Template IMG</th>
+                <th>Variable Template Text</th>
+                <th>Template Info</th>
+                <th>Image Editing</th>
+                <th>Banana2 Prompt</th>
+                <th>Image</th>
+              </tr>
+            </thead>
+            <tbody id="image-editing-body">
+              <tr><td colspan="8">Keine Einträge vorhanden.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="image-editing-message" class="message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="video-editing" class="tab-panel card">
+        <h3>Videobearbeitung (Platzhalter)</h3>
+        <p>Dieser Bereich ist vorbereitet. Die funktionale Umsetzung folgt in einem späteren Schritt.</p>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="create-modal">
+    <form id="create-image-editing-form" class="stack" method="dialog">
+      <h3>Neue Bildbearbeitung anlegen</h3>
+      <label class="check-row">
+        <input id="template" type="checkbox" />
+        Template vorhanden
+      </label>
+      <label>
+        Template IMG
+        <input id="template-img" type="file" accept="image/*" />
+      </label>
+      <label class="check-row">
+        <input id="variable-template-text" type="checkbox" />
+        Variabler Template Text
+      </label>
+      <label>
+        Template Info
+        <textarea id="template-info" rows="3" placeholder="Beschreibe variable und feste Textbestandteile"></textarea>
+      </label>
+      <label>
+        Image Editing
+        <textarea id="image-editing-description" rows="3" required></textarea>
+      </label>
+      <label>
+        Banana2 Prompt
+        <textarea id="banana2-prompt" rows="3" placeholder="Wird im späteren Prozess verwendet"></textarea>
+      </label>
+      <label class="check-row">
+        <input id="is-image" type="checkbox" checked disabled />
+        Image (immer true)
+      </label>
+
+      <div class="modal-actions">
+        <button value="cancel" class="ghost" type="button" id="cancel-modal">Abbrechen</button>
+        <button value="default" type="submit">Speichern</button>
+      </div>
+      <p id="create-message" class="message" role="status" aria-live="polite"></p>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
 </body>
 </html>
