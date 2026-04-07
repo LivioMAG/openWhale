@@ -47,8 +47,31 @@
       </section>
 
       <section id="templates" class="tab-panel card">
-        <h3>Vorlagen</h3>
-        <p>Hier werden wiederverwendbare Bildvorlagen angezeigt und verwaltet.</p>
+        <div class="panel-header">
+          <div>
+            <h3>Vorlagen</h3>
+            <p>Erstelle Post- oder Karussell-Vorlagen mit Caption-, Hashtag- und Spezialvorgaben.</p>
+          </div>
+          <button id="open-template-modal" class="plus" aria-label="Neue Vorlage anlegen">＋</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Typ</th>
+                <th>Bildbearbeitungen</th>
+                <th>Caption</th>
+                <th>Hashtags</th>
+                <th>Speziell beachten</th>
+              </tr>
+            </thead>
+            <tbody id="content-templates-body">
+              <tr><td colspan="6">Keine Vorlagen vorhanden.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="content-templates-message" class="message" role="status" aria-live="polite"></p>
       </section>
 
       <section id="image-editing" class="tab-panel card">
@@ -179,6 +202,67 @@
         <button id="close-text-view" class="ghost" type="button">Schließen</button>
       </div>
       <pre id="text-view-content" class="text-popup-content"></pre>
+    </form>
+  </dialog>
+
+  <dialog id="template-modal">
+    <form id="template-form" class="stack" method="dialog">
+      <h3>Neue Vorlage</h3>
+
+      <label>
+        Vorlagenname
+        <input id="template-name" type="text" required maxlength="120" placeholder="z. B. Produktlaunch Sommer" />
+      </label>
+
+      <label>
+        Typ
+        <select id="template-type" required>
+          <option value="post">Einzelner Post</option>
+          <option value="carousel">Karussell</option>
+        </select>
+      </label>
+
+      <label id="single-template-wrapper">
+        Bildbearbeitungsvorlage (genau eine)
+        <select id="single-template-select"></select>
+      </label>
+
+      <div id="carousel-template-wrapper" class="stack hidden">
+        <label>
+          Bildbearbeitung hinzufügen (max. 10)
+          <div class="inline-row">
+            <select id="carousel-template-select"></select>
+            <button type="button" id="add-carousel-template" class="ghost">Hinzufügen</button>
+          </div>
+        </label>
+        <ol id="carousel-selected-list" class="carousel-selected-list"></ol>
+      </div>
+
+      <label>
+        Caption-Anforderung
+        <textarea id="caption-requirements" rows="3" required placeholder="Wie soll die Caption sein?"></textarea>
+      </label>
+
+      <label>
+        Hashtag-Anforderung
+        <textarea id="hashtag-requirements" rows="3" required placeholder="Welche Hashtags sollen enthalten sein?"></textarea>
+      </label>
+
+      <label class="check-row">
+        <input id="has-special-requirements" type="checkbox" />
+        Etwas Spezielles beachten?
+      </label>
+
+      <label id="special-requirements-wrapper" class="hidden">
+        Spezielle Hinweise
+        <textarea id="special-requirements" rows="3" placeholder="Was soll speziell beachtet werden?"></textarea>
+      </label>
+
+      <div class="modal-actions">
+        <button value="cancel" class="ghost" type="button" id="cancel-template-modal">Abbrechen</button>
+        <button value="default" type="submit">Vorlage speichern</button>
+      </div>
+      <p id="template-form-message" class="message" role="status" aria-live="polite"></p>
     </form>
   </dialog>
 

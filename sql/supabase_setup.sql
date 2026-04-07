@@ -147,6 +147,7 @@ create table if not exists public.content_templates (
   name text not null default 'Neue Vorlage',
   caption_requirements text not null,
   hashtag_requirements text not null,
+  special_requirements text,
   image_editing_template_id bigint not null references public.image_editings(id),
   carousel_structure jsonb,
   caption_prompt text,
@@ -163,7 +164,11 @@ create table if not exists public.content_templates (
   constraint content_templates_carousel_structure_required
     check (
       template_type = 'post'
-      or (jsonb_typeof(carousel_structure) = 'array' and jsonb_array_length(carousel_structure) > 0)
+      or (
+        jsonb_typeof(carousel_structure) = 'array'
+        and jsonb_array_length(carousel_structure) > 0
+        and jsonb_array_length(carousel_structure) <= 10
+      )
     ),
   constraint content_templates_post_without_carousel_structure
     check (
@@ -171,6 +176,20 @@ create table if not exists public.content_templates (
       or carousel_structure is null
     )
 );
+
+alter table public.content_templates add column if not exists special_requirements text;
+
+alter table public.content_templates
+  drop constraint if exists content_templates_carousel_structure_required,
+  add constraint content_templates_carousel_structure_required
+  check (
+    template_type = 'post'
+    or (
+      jsonb_typeof(carousel_structure) = 'array'
+      and jsonb_array_length(carousel_structure) > 0
+      and jsonb_array_length(carousel_structure) <= 10
+    )
+  );
 
 comment on table public.content_templates is
   'Vorlagen für Beitragserstellung (Post/Carousel) inkl. Prompt- und Webhook-Status.';
