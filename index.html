@@ -35,10 +35,11 @@
       </header>
 
       <nav class="tabs" aria-label="Hauptnavigation">
-        <button class="tab active" data-tab="pool">Post vorbereiten</button>
+        <button class="tab active" data-tab="pool">Bibliothek</button>
         <button class="tab" data-tab="templates">Vorlagen</button>
         <button class="tab" data-tab="image-editing">Bildbearbeitung</button>
         <button class="tab" data-tab="video-editing">Videobearbeitung</button>
+        <button class="tab" data-tab="posting">Posting</button>
       </nav>
 
       <section id="pool" class="tab-panel active card">
@@ -141,6 +142,11 @@
         <h3>Videobearbeitung (Platzhalter)</h3>
         <p>Dieser Bereich ist vorbereitet. Die funktionale Umsetzung folgt in einem späteren Schritt.</p>
       </section>
+
+      <section id="posting" class="tab-panel card">
+        <h3>Posting (Platzhalter)</h3>
+        <p>Dieser Bereich ist vorbereitet. Die funktionale Umsetzung folgt in einem späteren Schritt.</p>
+      </section>
     </section>
   </main>
 
@@ -214,6 +220,11 @@
         Template Textfelder
         <textarea id="edit-template-info" rows="3"></textarea>
       </label>
+      <label id="edit-template-img-wrapper" class="hidden">
+        Template-Bild ersetzen
+        <input id="edit-template-img" type="file" accept="image/*" />
+      </label>
+      <img id="edit-template-preview" class="image-preview hidden" alt="Vorschau des neuen Template-Bildes" />
       <label>
         Bildbearbeitung
         <textarea id="edit-editing-instructions" rows="5" required></textarea>

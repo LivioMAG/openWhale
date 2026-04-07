@@ -54,6 +54,9 @@ const editEntryNameInput = document.querySelector("#edit-entry-name");
 const editNameWrapper = document.querySelector("#edit-entry-name").closest("label");
 const editTemplateInfoInput = document.querySelector("#edit-template-info");
 const editTemplateInfoWrapper = document.querySelector("#edit-template-info").closest("label");
+const editTemplateImgInput = document.querySelector("#edit-template-img");
+const editTemplateImgWrapper = document.querySelector("#edit-template-img-wrapper");
+const editTemplatePreview = document.querySelector("#edit-template-preview");
 const editEditingInstructionsInput = document.querySelector("#edit-editing-instructions");
 const cancelEditModalBtn = document.querySelector("#cancel-edit-modal");
 const editMessage = document.querySelector("#edit-message");
@@ -131,7 +134,7 @@ const buildPoolItemPreview = (item) => {
   if (item.mediaType === "video") {
     return `<video class="pool-thumb" src="${item.url}" muted preload="metadata"></video>`;
   }
-  return `<img class="pool-thumb" src="${item.url}" alt="${item.name}" loading="lazy" />`;
+  return `<span class="pool-drag-photo" draggable="true" data-drag-pool-id="${item.id}" title="Foto in Slot ziehen"><img class="pool-thumb" src="${item.url}" alt="${item.name}" loading="lazy" /></span>`;
 };
 
 const renderPoolGroupOptions = () => {
@@ -177,7 +180,7 @@ const renderPoolItems = () => {
   const mediaRows = visibleItems
     .map(
       (item) => `
-      <tr class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
+      <tr class="pool-item" data-pool-id="${item.id}">
         <td>
           <button type="button" class="pool-preview-btn" data-action="preview-item" data-pool-id="${item.id}">
             ${buildPoolItemPreview(item)}
@@ -266,7 +269,6 @@ const renderComposerSlots = (templateId) => {
       (slot) => `
       <div class="drop-slot" data-slot-key="${slot.slotKey}">
         <strong>${slot.label}</strong> (Vorlage #${slot.templateRef})
-        <p class="pool-meta">Bild aus dem Pool hier hineinziehen.</p>
         <div class="slot-preview" data-slot-preview="${slot.slotKey}">Kein Bild zugewiesen.</div>
       </div>
     `
@@ -300,11 +302,10 @@ const handleAssignment = (slotKey, poolId) => {
     return;
   }
 
-  preview.innerHTML = `
-    ${poolItem.mediaType === "video" ? `<video src="${poolItem.url}" controls muted preload="metadata"></video>` : `<img src="${poolItem.url}" alt="${poolItem.name}" loading="lazy" />`}
-    <div class="pool-meta">Pool-ID: ${poolItem.id}</div>
-    <div class="pool-meta">Group-ID: ${poolItem.groupId ?? "empty"}</div>
-  `;
+  preview.innerHTML =
+    poolItem.mediaType === "video"
+      ? `<video src="${poolItem.url}" controls muted preload="metadata"></video>`
+      : `<img src="${poolItem.url}" alt="${poolItem.name}" loading="lazy" />`;
 };
 
 const openPoolPreview = (item) => {
@@ -631,7 +632,6 @@ const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
     .select("id, name")
-    .eq("template", true)
     .order("name", { ascending: true });
 
   if (error) {
@@ -1067,11 +1067,11 @@ const setupEvents = () => {
   });
 
   document.addEventListener("dragstart", (event) => {
-    const poolItem = event.target.closest(".pool-item");
-    if (!poolItem) {
+    const dragMedia = event.target.closest("[data-drag-pool-id]");
+    if (!dragMedia) {
       return;
     }
-    event.dataTransfer?.setData("text/plain", poolItem.dataset.poolId ?? "");
+    event.dataTransfer?.setData("text/plain", dragMedia.dataset.dragPoolId ?? "");
     event.dataTransfer.effectAllowed = "copy";
   });
 
@@ -1394,6 +1394,10 @@ const setupEvents = () => {
       editEditingInstructionsInput.value = decodeURIComponent(editBtn.dataset.editingInstructions ?? "");
       editNameWrapper.classList.toggle("hidden", !hasTemplate);
       editTemplateInfoWrapper.classList.toggle("hidden", !hasTemplate || !hasVariableTemplateText);
+      editTemplateImgWrapper.classList.toggle("hidden", !hasTemplate);
+      editTemplateImgInput.value = "";
+      editTemplatePreview.classList.add("hidden");
+      editTemplatePreview.removeAttribute("src");
       message(editMessage, "");
       editModal.showModal();
       return;
@@ -1458,6 +1462,18 @@ const setupEvents = () => {
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
   closeTextViewBtn.addEventListener("click", () => textViewModal.close());
 
+  editTemplateImgInput.addEventListener("change", () => {
+    const [file] = editTemplateImgInput.files || [];
+    if (!file) {
+      editTemplatePreview.classList.add("hidden");
+      editTemplatePreview.removeAttribute("src");
+      return;
+    }
+
+    editTemplatePreview.src = URL.createObjectURL(file);
+    editTemplatePreview.classList.remove("hidden");
+  });
+
   editForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const id = Number(editEntryIdInput.value);
@@ -1487,6 +1503,10 @@ const setupEvents = () => {
       };
       if (allowTemplateFields) {
         payload.name = name;
+        const [templateImgFile] = editTemplateImgInput.files || [];
+        if (templateImgFile) {
+          payload.template_img_url = await uploadImage(templateImgFile, appConfig.storage.templateBucket);
+        }
       }
       if (allowTemplateInfo) {
         payload.template_info = templateInfo || null;
