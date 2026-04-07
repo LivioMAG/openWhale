@@ -343,6 +343,25 @@ dialog form {
   background: #fafbff;
 }
 
+.pool-upload-controls {
+  margin-top: 0.5rem;
+  max-width: 320px;
+}
+
+.pool-assets-table th,
+.pool-assets-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.pool-thumb {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 .pool-group {
   margin-bottom: 0.7rem;
   border: 1px solid var(--border);

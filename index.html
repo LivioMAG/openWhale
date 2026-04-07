@@ -35,7 +35,7 @@
       </header>
 
       <nav class="tabs" aria-label="Hauptnavigation">
-        <button class="tab active" data-tab="pool">Mein Pool</button>
+        <button class="tab active" data-tab="pool">Post vorbereiten</button>
         <button class="tab" data-tab="templates">Vorlagen</button>
         <button class="tab" data-tab="image-editing">Bildbearbeitung</button>
         <button class="tab" data-tab="video-editing">Videobearbeitung</button>
@@ -46,14 +46,22 @@
           <section class="pool-column">
             <div class="panel-header">
               <div>
-                <h3>Mein Pool</h3>
-                <p>Links: Fotos hochladen (einzeln oder als Gruppe) und per Drag & Drop verwenden.</p>
+                <h3>Post vorbereiten</h3>
+                <p>Medien hochladen, gruppieren, umbenennen und für Posts/Karussells zuordnen.</p>
               </div>
-              <button id="upload-pool-files" class="ghost">Dateien hochladen</button>
+              <button id="upload-pool-files" class="ghost">Medien hochladen</button>
             </div>
-            <input id="pool-file-input" class="hidden" type="file" accept="image/*" multiple />
+            <div class="pool-upload-controls">
+              <label>
+                Zur Gruppe hinzufügen
+                <select id="pool-group-select">
+                  <option value="">Neue/keine Gruppe</option>
+                </select>
+              </label>
+            </div>
+            <input id="pool-file-input" class="hidden" type="file" accept="image/*,video/*" multiple />
             <div id="pool-list" class="pool-list">
-              <p>Noch keine Bilder im Pool.</p>
+              <p>Noch keine Medien vorhanden.</p>
             </div>
             <p id="pool-message" class="message" role="status" aria-live="polite"></p>
           </section>
@@ -236,10 +244,11 @@
   <dialog id="pool-preview-modal">
     <form class="stack" method="dialog">
       <div class="panel-header">
-        <h3 id="pool-preview-title">Bildvorschau</h3>
+        <h3 id="pool-preview-title">Medienvorschau</h3>
         <button id="close-pool-preview" class="ghost" type="button">Schließen</button>
       </div>
-      <img id="pool-preview-image" class="pool-preview-image" alt="Vorschau aus dem Pool" />
+      <img id="pool-preview-image" class="pool-preview-image" alt="Bildvorschau aus dem Pool" />
+      <video id="pool-preview-video" class="pool-preview-image hidden" controls></video>
     </form>
   </dialog>
 

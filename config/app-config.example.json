@@ -5,7 +5,8 @@
   },
   "storage": {
     "templateBucket": "template-images",
-    "imageBucket": "image-editing-images"
+    "imageBucket": "image-editing-images",
+    "mediaBucket": "media-assets"
   },
   "webhooks": {
     "n8nImageGeneration": "https://n8n.example.com/webhook/image-generation",

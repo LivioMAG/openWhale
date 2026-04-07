@@ -239,3 +239,69 @@ create policy "auth users can update content_templates"
   to authenticated
   using (true)
   with check (true);
+
+-- =========================================
+-- Medienpool für Post-Vorbereitung (Bilder + Videos + Gruppen)
+-- =========================================
+
+create table if not exists public.media_assets (
+  id text primary key default substr(gen_random_uuid()::text, 1, 8),
+  name text not null,
+  media_type text not null check (media_type in ('image', 'video')),
+  file_url text not null,
+  group_id text,
+  group_name text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.media_assets add column if not exists group_name text;
+
+grant all on table public.media_assets to authenticated;
+alter table public.media_assets enable row level security;
+
+drop policy if exists "auth users can read media_assets" on public.media_assets;
+create policy "auth users can read media_assets"
+  on public.media_assets
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "auth users can insert media_assets" on public.media_assets;
+create policy "auth users can insert media_assets"
+  on public.media_assets
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "auth users can update media_assets" on public.media_assets;
+create policy "auth users can update media_assets"
+  on public.media_assets
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
+drop policy if exists "auth users can delete media_assets" on public.media_assets;
+create policy "auth users can delete media_assets"
+  on public.media_assets
+  for delete
+  to authenticated
+  using (true);
+
+insert into storage.buckets (id, name, public)
+values ('media-assets', 'media-assets', true)
+on conflict (id) do nothing;
+
+drop policy if exists "auth users can upload media assets" on storage.objects;
+create policy "auth users can upload media assets"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (bucket_id = 'media-assets');
+
+drop policy if exists "auth users can read media assets" on storage.objects;
+create policy "auth users can read media assets"
+  on storage.objects
+  for select
+  to authenticated
+  using (bucket_id = 'media-assets');
