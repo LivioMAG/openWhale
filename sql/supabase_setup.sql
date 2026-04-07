@@ -311,3 +311,95 @@ create policy "auth users can read media assets"
   for select
   to authenticated
   using (bucket_id = 'media-assets');
+
+-- =========================================
+-- Posting Queue (aus Bibliothek -> Weiter)
+-- =========================================
+
+create table if not exists public.posting_jobs (
+  id bigint generated always as identity primary key,
+  content_template_id bigint references public.content_templates(id),
+  content_template_name text not null,
+  content_type text not null check (content_type in ('post', 'carousel')),
+  post_input text not null,
+  units jsonb not null default '[]'::jsonb,
+  image_editing_image_map jsonb not null default '[]'::jsonb,
+  payload jsonb not null default '{}'::jsonb,
+  "isDone" boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.posting_jobs add column if not exists content_template_name text;
+alter table public.posting_jobs add column if not exists content_type text;
+alter table public.posting_jobs add column if not exists post_input text;
+alter table public.posting_jobs add column if not exists units jsonb not null default '[]'::jsonb;
+alter table public.posting_jobs add column if not exists image_editing_image_map jsonb not null default '[]'::jsonb;
+alter table public.posting_jobs add column if not exists payload jsonb not null default '{}'::jsonb;
+alter table public.posting_jobs add column if not exists "isDone" boolean not null default false;
+alter table public.posting_jobs add column if not exists updated_at timestamptz not null default now();
+
+update public.posting_jobs
+set content_template_name = coalesce(nullif(trim(content_template_name), ''), 'Unbenannte Vorlage')
+where content_template_name is null or trim(content_template_name) = '';
+
+update public.posting_jobs
+set content_type = coalesce(nullif(trim(content_type), ''), 'post')
+where content_type is null or trim(content_type) = '';
+
+update public.posting_jobs
+set post_input = coalesce(post_input, '')
+where post_input is null;
+
+alter table public.posting_jobs
+  alter column content_template_name set not null,
+  alter column content_type set not null,
+  alter column post_input set not null;
+
+alter table public.posting_jobs
+  drop constraint if exists posting_jobs_content_type_valid,
+  add constraint posting_jobs_content_type_valid
+  check (content_type in ('post', 'carousel'));
+
+create or replace function public.set_posting_jobs_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_posting_jobs_updated_at on public.posting_jobs;
+create trigger trg_posting_jobs_updated_at
+before update on public.posting_jobs
+for each row
+execute function public.set_posting_jobs_updated_at();
+
+grant all on table public.posting_jobs to authenticated;
+grant usage, select on sequence public.posting_jobs_id_seq to authenticated;
+
+alter table public.posting_jobs enable row level security;
+
+drop policy if exists "auth users can read posting_jobs" on public.posting_jobs;
+create policy "auth users can read posting_jobs"
+  on public.posting_jobs
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "auth users can insert posting_jobs" on public.posting_jobs;
+create policy "auth users can insert posting_jobs"
+  on public.posting_jobs
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "auth users can update posting_jobs" on public.posting_jobs;
+create policy "auth users can update posting_jobs"
+  on public.posting_jobs
+  for update
+  to authenticated
+  using (true)
+  with check (true);
