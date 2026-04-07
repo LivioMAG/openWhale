@@ -45,11 +45,11 @@
         <div class="pool-layout">
           <section class="pool-column">
             <div class="panel-header">
-              <div>
-                <h3>Post vorbereiten</h3>
-                <p>Medien hochladen, bewerten, gruppieren und für Posts/Karussells zuordnen.</p>
+              <h3>Bibliothek</h3>
+              <div class="panel-actions">
+                <button id="upload-pool-files" class="ghost" aria-label="Medien hochladen">⤴</button>
+                <button id="open-composer-template-modal" class="plus" aria-label="Vorlage öffnen">＋</button>
               </div>
-              <button id="upload-pool-files" class="ghost">Medien hochladen</button>
             </div>
             <div class="pool-upload-controls">
               <label>
@@ -66,18 +66,7 @@
                 </select>
               </label>
             </div>
-            <div class="composer-panel">
-              <div class="panel-header">
-                <div>
-                  <h3>Vorlage anwenden</h3>
-                  <p>Vorlage oben aufklappen, wählen und Slots befüllen (Post oder Karussell).</p>
-                </div>
-                <button id="create-composition" class="plus" aria-label="Vorlage anwenden ein-/ausklappen">＋</button>
-              </div>
-              <div id="composition-area" class="composition-area hidden">
-                <p>Klicke auf ＋, um eine Vorlage für Post oder Karussell zu starten.</p>
-              </div>
-            </div>
+            <div id="composition-area" class="composition-area hidden"></div>
             <input id="pool-file-input" class="hidden" type="file" accept="image/*,video/*" multiple />
             <div id="pool-list" class="pool-list">
               <p>Noch keine Medien vorhanden.</p>
