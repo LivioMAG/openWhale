@@ -11,7 +11,6 @@ const tabs = document.querySelectorAll(".tab");
 const tabPanels = document.querySelectorAll(".tab-panel");
 const uploadPoolFilesBtn = document.querySelector("#upload-pool-files");
 const poolFileInput = document.querySelector("#pool-file-input");
-const poolGroupSelect = document.querySelector("#pool-group-select");
 const poolFilterGroup = document.querySelector("#pool-filter-group");
 const poolNewGroupNameInput = document.querySelector("#pool-new-group-name");
 const poolCreateGroupBtn = document.querySelector("#pool-create-group");
@@ -137,7 +136,6 @@ const renderPoolGroupOptions = () => {
   const options = Object.entries(poolGroupNames)
     .map(([groupId, label]) => `<option value="${groupId}">${label}</option>`)
     .join("");
-  poolGroupSelect.innerHTML = `<option value="">Neue/keine Gruppe</option>${options}`;
   poolFilterGroup.innerHTML = `<option value="__all__">Alle Gruppen</option><option value="__none__">Ohne Gruppe</option>${options}`;
   poolFilterGroup.value = activePoolFilterGroup;
 };
@@ -170,6 +168,10 @@ const renderPoolItems = () => {
         ? poolItems.filter((item) => !item.groupId)
         : poolItems.filter((item) => item.groupId === activePoolFilterGroup);
 
+  const groupOptions = Object.entries(poolGroupNames)
+    .map(([groupId, label]) => `<option value="${groupId}">${label}</option>`)
+    .join("");
+
   const mediaRows = visibleItems
     .map(
       (item) => `
@@ -181,7 +183,12 @@ const renderPoolItems = () => {
         </td>
         <td>${item.name}</td>
         <td>${getMediaTypeLabel(item.mediaType)}</td>
-        <td>${getPoolGroupLabel(item.groupId)}</td>
+        <td>
+          <select data-action="assign-group" data-pool-id="${item.id}">
+            <option value="__none__" ${item.groupId ? "" : "selected"}>Ohne Gruppe</option>
+            ${groupOptions.replace(`value="${item.groupId}"`, `value="${item.groupId}" selected`)}
+          </select>
+        </td>
         <td>
           <div class="star-rating">
             ${[1, 2, 3]
@@ -194,7 +201,7 @@ const renderPoolItems = () => {
         </td>
         <td>
           <button type="button" class="icon-btn ghost" data-action="rename-item" data-pool-id="${item.id}" title="Datei umbenennen">✎</button>
-          <button type="button" class="icon-btn ghost" data-action="change-group" data-pool-id="${item.id}" title="Gruppe wechseln">⇄</button>
+          <button type="button" class="icon-btn ghost" data-action="clear-group" data-pool-id="${item.id}" title="Aus Gruppe lösen">⊘</button>
           <button type="button" class="icon-btn danger" data-action="delete-item" data-pool-id="${item.id}" title="Datei löschen">🗑</button>
         </td>
       </tr>
@@ -843,9 +850,6 @@ const setupEvents = () => {
       return;
     }
 
-    const selectedGroup = poolGroupSelect.value || null;
-    const sharedGroupId = selectedGroup || (files.length > 1 ? crypto.randomUUID().slice(0, 8) : null);
-    const sharedGroupName = sharedGroupId ? getPoolGroupLabel(sharedGroupId) : null;
     message(poolMessage, "Upload läuft …");
 
     try {
@@ -856,8 +860,8 @@ const setupEvents = () => {
           name: file.name,
           media_type: mediaType,
           file_url: fileUrl,
-          group_id: sharedGroupId,
-          group_name: sharedGroupName,
+          group_id: null,
+          group_name: null,
           rating: null,
         });
       }
@@ -947,32 +951,15 @@ const setupEvents = () => {
       return;
     }
 
-    if (action === "change-group") {
+    if (action === "clear-group") {
       const poolId = actionBtn.dataset.poolId;
-      const item = poolItems.find((entry) => entry.id === poolId);
-      if (!item) {
-        return;
-      }
-      const options = ["__none__: Ohne Gruppe", ...Object.entries(poolGroupNames).map(([id, label]) => `${id}: ${label}`)].join(
-        "\n"
-      );
-      const selectedGroup = window.prompt(`Neue Gruppe wählen (ID eingeben):\n${options}`, item.groupId ?? "__none__");
-      if (!selectedGroup) {
-        return;
-      }
-
-      const nextGroupId = selectedGroup === "__none__" ? null : selectedGroup.trim();
-      if (nextGroupId && !poolGroupNames[nextGroupId]) {
-        message(poolMessage, "Unbekannte Gruppen-ID.", true);
-        return;
-      }
       try {
         await updateMediaAsset(poolId, {
-          group_id: nextGroupId,
-          group_name: nextGroupId ? getPoolGroupLabel(nextGroupId) : null,
+          group_id: null,
+          group_name: null,
         });
         await loadPoolAssets();
-        message(poolMessage, "Gruppe wurde aktualisiert.");
+        message(poolMessage, "Medium wurde aus der Gruppe gelöst.");
       } catch (error) {
         message(poolMessage, `Gruppenwechsel fehlgeschlagen: ${error.message}`, true);
       }
@@ -1021,6 +1008,25 @@ const setupEvents = () => {
     }
   });
 
+  poolList.addEventListener("change", async (event) => {
+    const select = event.target.closest('[data-action="assign-group"]');
+    if (!select) {
+      return;
+    }
+    const poolId = select.dataset.poolId;
+    const nextGroupId = select.value === "__none__" ? null : select.value;
+    try {
+      await updateMediaAsset(poolId, {
+        group_id: nextGroupId,
+        group_name: nextGroupId ? getPoolGroupLabel(nextGroupId) : null,
+      });
+      await loadPoolAssets();
+      message(poolMessage, "Gruppe wurde aktualisiert.");
+    } catch (error) {
+      message(poolMessage, `Gruppenwechsel fehlgeschlagen: ${error.message}`, true);
+    }
+  });
+
   poolFilterGroup.addEventListener("change", () => {
     activePoolFilterGroup = poolFilterGroup.value || "__all__";
     renderPoolItems();
@@ -1034,13 +1040,20 @@ const setupEvents = () => {
     }
     const groupId = crypto.randomUUID().slice(0, 8);
     poolGroupNames[groupId] = groupName;
-    poolGroupSelect.value = groupId;
     poolNewGroupNameInput.value = "";
     renderPoolItems();
-    message(poolMessage, `Gruppe "${groupName}" erstellt. Du kannst jetzt direkt hinein hochladen.`);
+    message(poolMessage, `Gruppe "${groupName}" erstellt. Du kannst Medien im Table zuweisen.`);
   });
 
   createCompositionBtn.addEventListener("click", () => {
+    const isOpen = !compositionArea.classList.contains("hidden");
+    if (isOpen) {
+      compositionArea.classList.add("hidden");
+      message(compositionMessage, "");
+      return;
+    }
+
+    compositionArea.classList.remove("hidden");
     if (!contentTemplateOptions.length) {
       message(compositionMessage, "Keine Vorlagen vorhanden. Bitte erst unter 'Vorlagen' anlegen.", true);
       return;
