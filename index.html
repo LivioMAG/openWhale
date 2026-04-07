@@ -42,8 +42,36 @@
       </nav>
 
       <section id="pool" class="tab-panel active card">
-        <h3>Mein Pool</h3>
-        <p>Hier werden später generierte und hochgeladene Assets zentral gesammelt.</p>
+        <div class="pool-layout">
+          <section class="pool-column">
+            <div class="panel-header">
+              <div>
+                <h3>Mein Pool</h3>
+                <p>Links: Fotos hochladen (einzeln oder als Gruppe) und per Drag & Drop verwenden.</p>
+              </div>
+              <button id="upload-pool-files" class="ghost">Dateien hochladen</button>
+            </div>
+            <input id="pool-file-input" class="hidden" type="file" accept="image/*" multiple />
+            <div id="pool-list" class="pool-list">
+              <p>Noch keine Bilder im Pool.</p>
+            </div>
+            <p id="pool-message" class="message" role="status" aria-live="polite"></p>
+          </section>
+
+          <section class="pool-column">
+            <div class="panel-header">
+              <div>
+                <h3>Vorlage anwenden</h3>
+                <p>Rechts: Vorlage wählen, Bilder zuordnen und mit „Weiter“ prüfen.</p>
+              </div>
+              <button id="create-composition" class="plus" aria-label="Neue Zuordnung anlegen">＋</button>
+            </div>
+            <div id="composition-area" class="composition-area">
+              <p>Klicke auf ＋, um eine Vorlage für Post oder Karussell zu starten.</p>
+            </div>
+            <p id="composition-message" class="message" role="status" aria-live="polite"></p>
+          </section>
+        </div>
       </section>
 
       <section id="templates" class="tab-panel card">

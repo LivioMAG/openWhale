@@ -9,6 +9,13 @@ const logoutBtn = document.querySelector("#logout-btn");
 
 const tabs = document.querySelectorAll(".tab");
 const tabPanels = document.querySelectorAll(".tab-panel");
+const uploadPoolFilesBtn = document.querySelector("#upload-pool-files");
+const poolFileInput = document.querySelector("#pool-file-input");
+const poolList = document.querySelector("#pool-list");
+const poolMessage = document.querySelector("#pool-message");
+const createCompositionBtn = document.querySelector("#create-composition");
+const compositionArea = document.querySelector("#composition-area");
+const compositionMessage = document.querySelector("#composition-message");
 
 const imageEditingBody = document.querySelector("#image-editing-body");
 const imageEditingMessage = document.querySelector("#image-editing-message");
@@ -70,6 +77,9 @@ let appConfig;
 let imageEditingTemplates = [];
 let imageEditingTemplateOptions = [];
 let carouselSelection = [];
+let contentTemplateOptions = [];
+let poolItems = [];
+let activeComposer = null;
 
 const message = (element, text, isError = false) => {
   element.textContent = text || "";
@@ -88,6 +98,169 @@ const shortText = (value) => {
   }
 
   return `${value.slice(0, 67)}…`;
+};
+
+const buildPoolItemCard = (item) => `
+  <article class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
+    <img src="${item.url}" alt="${item.name}" loading="lazy" />
+    <div class="pool-meta">ID: ${item.id}</div>
+    <div class="pool-meta">Group: ${item.groupId ?? "empty"}</div>
+  </article>
+`;
+
+const renderPoolItems = () => {
+  if (!poolItems.length) {
+    poolList.innerHTML = "<p>Noch keine Bilder im Pool.</p>";
+    return;
+  }
+
+  const grouped = poolItems.reduce(
+    (acc, item) => {
+      if (item.groupId) {
+        (acc.groups[item.groupId] ||= []).push(item);
+      } else {
+        acc.singles.push(item);
+      }
+      return acc;
+    },
+    { groups: {}, singles: [] }
+  );
+
+  const groupBlocks = Object.entries(grouped.groups)
+    .map(
+      ([groupId, items]) => `
+      <section class="pool-group">
+        <h4>Gruppe ${groupId} (${items.length})</h4>
+        <div class="pool-items">${items.map(buildPoolItemCard).join("")}</div>
+      </section>
+    `
+    )
+    .join("");
+
+  const singleBlock = grouped.singles.length
+    ? `
+      <section class="pool-group">
+        <h4>Einzelbilder (${grouped.singles.length})</h4>
+        <div class="pool-items">${grouped.singles.map(buildPoolItemCard).join("")}</div>
+      </section>
+    `
+    : "";
+
+  poolList.innerHTML = `${groupBlocks}${singleBlock}`;
+};
+
+const buildComposerMarkup = () => {
+  const options = contentTemplateOptions
+    .map((template) => `<option value="${template.id}">${template.name} (${template.template_type})</option>`)
+    .join("");
+
+  compositionArea.innerHTML = `
+    <div class="composer">
+      <label>
+        Vorlage
+        <select id="composer-template-select">
+          <option value="">Bitte Vorlage wählen</option>
+          ${options}
+        </select>
+      </label>
+      <div id="composer-slots"><p>Wähle zuerst eine Vorlage.</p></div>
+      <button id="composer-next" type="button">Weiter</button>
+    </div>
+  `;
+};
+
+const renderComposerSlots = (templateId) => {
+  const selectedTemplate = contentTemplateOptions.find((item) => item.id === Number(templateId));
+  const slotsWrap = compositionArea.querySelector("#composer-slots");
+  if (!selectedTemplate || !slotsWrap) {
+    return;
+  }
+
+  const slots =
+    selectedTemplate.template_type === "post"
+      ? [{ slotKey: "post-1", label: "Post-Bild", templateRef: selectedTemplate.image_editing_template_id }]
+      : (Array.isArray(selectedTemplate.carousel_structure) ? selectedTemplate.carousel_structure : [])
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((entry, index) => ({
+            slotKey: `carousel-${index + 1}`,
+            label: `Karussell Slot ${index + 1}`,
+            templateRef: entry.template_id,
+          }));
+
+  activeComposer = {
+    templateId: selectedTemplate.id,
+    type: selectedTemplate.template_type,
+    slots,
+    assignments: {},
+  };
+
+  slotsWrap.innerHTML = slots
+    .map(
+      (slot) => `
+      <div class="drop-slot" data-slot-key="${slot.slotKey}">
+        <strong>${slot.label}</strong> (Vorlage #${slot.templateRef})
+        <p class="pool-meta">Bild aus dem Pool hier hineinziehen.</p>
+        <div class="slot-preview" data-slot-preview="${slot.slotKey}">Kein Bild zugewiesen.</div>
+        <label>
+          Kurztext
+          <textarea data-slot-text="${slot.slotKey}" rows="2" placeholder="Was zeigt dieses Bild?"></textarea>
+        </label>
+      </div>
+    `
+    )
+    .join("");
+};
+
+const handleAssignment = (slotKey, poolId) => {
+  if (!activeComposer) {
+    return;
+  }
+  const poolItem = poolItems.find((item) => item.id === poolId);
+  if (!poolItem) {
+    return;
+  }
+
+  activeComposer.assignments[slotKey] = {
+    poolId,
+    text: activeComposer.assignments[slotKey]?.text ?? "",
+  };
+
+  const preview = compositionArea.querySelector(`[data-slot-preview="${slotKey}"]`);
+  if (!preview) {
+    return;
+  }
+
+  preview.innerHTML = `
+    <img src="${poolItem.url}" alt="${poolItem.name}" loading="lazy" />
+    <div class="pool-meta">Pool-ID: ${poolItem.id}</div>
+    <div class="pool-meta">Group-ID: ${poolItem.groupId ?? "empty"}</div>
+  `;
+};
+
+const validateComposer = () => {
+  if (!activeComposer) {
+    message(compositionMessage, "Bitte zuerst auf Plus klicken und eine Vorlage wählen.", true);
+    return;
+  }
+
+  const assignedSlots = Object.entries(activeComposer.assignments).filter(([, value]) => Boolean(value.poolId));
+  if (activeComposer.type === "post" && assignedSlots.length !== 1) {
+    message(compositionMessage, "Bei Post-Vorlagen muss genau ein Bild zugewiesen sein.", true);
+    return;
+  }
+
+  if (activeComposer.type === "carousel" && assignedSlots.length < 2) {
+    message(compositionMessage, "Bei Karussell-Vorlagen müssen mindestens zwei Bilder zugewiesen sein.", true);
+    return;
+  }
+
+  const missingTextForAssigned = assignedSlots.some(([, value]) => !(value.text ?? "").trim());
+  if (missingTextForAssigned) {
+    message(compositionMessage, "Bitte für jedes zugewiesene Bild einen Kurztext eintragen.", true);
+    return;
+  }
+
+  message(compositionMessage, "Prüfung erfolgreich. Du kannst im nächsten Schritt weiterverarbeiten.");
 };
 
 const getStatusLabel = (row) => {
@@ -366,6 +539,7 @@ const loadContentTemplates = async () => {
     return;
   }
 
+  contentTemplateOptions = data ?? [];
   renderContentTemplates(data ?? []);
   message(contentTemplatesMessage, "");
 };
@@ -484,6 +658,125 @@ const setTab = (tabId) => {
 const setupEvents = () => {
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => setTab(tab.dataset.tab));
+  });
+
+  uploadPoolFilesBtn.addEventListener("click", () => poolFileInput.click());
+  poolFileInput.addEventListener("change", async () => {
+    const files = Array.from(poolFileInput.files ?? []);
+    if (!files.length) {
+      return;
+    }
+
+    const sharedGroupId = files.length > 1 ? crypto.randomUUID().slice(0, 8) : null;
+    message(poolMessage, "Upload läuft …");
+
+    try {
+      for (const file of files) {
+        const imageUrl = await uploadImage(file, appConfig.storage.imageEditingBucket);
+        poolItems.unshift({
+          id: crypto.randomUUID().slice(0, 8),
+          groupId: sharedGroupId,
+          name: file.name,
+          url: imageUrl,
+        });
+      }
+
+      renderPoolItems();
+      message(
+        poolMessage,
+        files.length > 1
+          ? `${files.length} Dateien als Gruppe ${sharedGroupId} hochgeladen.`
+          : "Datei als Einzelbild in den Pool geladen."
+      );
+      poolFileInput.value = "";
+    } catch (error) {
+      message(poolMessage, `Upload fehlgeschlagen: ${error.message}`, true);
+    }
+  });
+
+  createCompositionBtn.addEventListener("click", () => {
+    if (!contentTemplateOptions.length) {
+      message(compositionMessage, "Keine Vorlagen vorhanden. Bitte erst unter 'Vorlagen' anlegen.", true);
+      return;
+    }
+
+    buildComposerMarkup();
+    activeComposer = null;
+    message(compositionMessage, "");
+  });
+
+  compositionArea.addEventListener("change", (event) => {
+    const templateSelect = event.target.closest("#composer-template-select");
+    if (templateSelect) {
+      renderComposerSlots(templateSelect.value);
+      message(compositionMessage, "");
+      return;
+    }
+
+    const slotText = event.target.closest("[data-slot-text]");
+    if (!slotText || !activeComposer) {
+      return;
+    }
+
+    const slotKey = slotText.dataset.slotText;
+    if (!slotKey || !activeComposer.assignments[slotKey]) {
+      return;
+    }
+
+    activeComposer.assignments[slotKey].text = slotText.value;
+  });
+
+  compositionArea.addEventListener("click", (event) => {
+    const nextBtn = event.target.closest("#composer-next");
+    if (nextBtn) {
+      validateComposer();
+    }
+  });
+
+  document.addEventListener("dragstart", (event) => {
+    const poolItem = event.target.closest(".pool-item");
+    if (!poolItem) {
+      return;
+    }
+    event.dataTransfer?.setData("text/plain", poolItem.dataset.poolId ?? "");
+    event.dataTransfer.effectAllowed = "copy";
+  });
+
+  compositionArea.addEventListener("dragover", (event) => {
+    const slot = event.target.closest(".drop-slot");
+    if (!slot) {
+      return;
+    }
+
+    event.preventDefault();
+    slot.classList.add("drag-over");
+  });
+
+  compositionArea.addEventListener("dragleave", (event) => {
+    const slot = event.target.closest(".drop-slot");
+    if (!slot) {
+      return;
+    }
+
+    slot.classList.remove("drag-over");
+  });
+
+  compositionArea.addEventListener("drop", (event) => {
+    const slot = event.target.closest(".drop-slot");
+    if (!slot) {
+      return;
+    }
+
+    event.preventDefault();
+    slot.classList.remove("drag-over");
+    const poolId = event.dataTransfer?.getData("text/plain");
+    const slotKey = slot.dataset.slotKey;
+    if (!poolId || !slotKey) {
+      return;
+    }
+
+    handleAssignment(slotKey, poolId);
+    message(compositionMessage, "Bild zugewiesen.");
   });
 
   loginForm.addEventListener("submit", async (event) => {
@@ -874,6 +1167,7 @@ const init = async () => {
   supabase = createClient(appConfig.supabase.url, appConfig.supabase.anonKey);
   await loadImageEditingTemplates();
   setupEvents();
+  renderPoolItems();
   await checkSession();
 };
 
