@@ -136,3 +136,87 @@ create policy "auth users can read image-editing images"
   for select
   to authenticated
   using (bucket_id = 'image-editing-images');
+
+-- =========================================
+-- Vorlagen (Post + Carousel)
+-- =========================================
+
+create table if not exists public.content_templates (
+  id bigint generated always as identity primary key,
+  template_type text not null check (template_type in ('post', 'carousel')),
+  name text not null default 'Neue Vorlage',
+  caption_requirements text not null,
+  hashtag_requirements text not null,
+  image_editing_template_id bigint not null references public.image_editings(id),
+  carousel_structure jsonb,
+  caption_prompt text,
+  hashtag_prompt text,
+  webhook_status text not null default 'pending' check (webhook_status in ('pending', 'sent', 'failed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint content_templates_name_required
+    check (coalesce(length(trim(name)), 0) > 0),
+  constraint content_templates_caption_required
+    check (coalesce(length(trim(caption_requirements)), 0) > 0),
+  constraint content_templates_hashtag_required
+    check (coalesce(length(trim(hashtag_requirements)), 0) > 0),
+  constraint content_templates_carousel_structure_required
+    check (
+      template_type = 'post'
+      or (jsonb_typeof(carousel_structure) = 'array' and jsonb_array_length(carousel_structure) > 0)
+    ),
+  constraint content_templates_post_without_carousel_structure
+    check (
+      template_type = 'carousel'
+      or carousel_structure is null
+    )
+);
+
+comment on table public.content_templates is
+  'Vorlagen für Beitragserstellung (Post/Carousel) inkl. Prompt- und Webhook-Status.';
+
+comment on column public.content_templates.carousel_structure is
+  'Nur bei Carousel: JSONB List of Maps mit Reihenfolge z. B. [{"position":1,"template_id":10},{"position":2,"template_id":12}]';
+
+create or replace function public.set_content_templates_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_content_templates_updated_at on public.content_templates;
+create trigger trg_content_templates_updated_at
+before update on public.content_templates
+for each row
+execute function public.set_content_templates_updated_at();
+
+grant all on table public.content_templates to authenticated;
+grant usage, select on sequence public.content_templates_id_seq to authenticated;
+
+alter table public.content_templates enable row level security;
+
+drop policy if exists "auth users can read content_templates" on public.content_templates;
+create policy "auth users can read content_templates"
+  on public.content_templates
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "auth users can insert content_templates" on public.content_templates;
+create policy "auth users can insert content_templates"
+  on public.content_templates
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "auth users can update content_templates" on public.content_templates;
+create policy "auth users can update content_templates"
+  on public.content_templates
+  for update
+  to authenticated
+  using (true)
+  with check (true);
