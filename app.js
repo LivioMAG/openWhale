@@ -69,6 +69,9 @@ const contentTemplatesBody = document.querySelector("#content-templates-body");
 const contentTemplatesMessage = document.querySelector("#content-templates-message");
 const templateModal = document.querySelector("#template-modal");
 const templateForm = document.querySelector("#template-form");
+const templateEntryIdInput = document.querySelector("#template-entry-id");
+const templateModalTitle = document.querySelector("#template-modal-title");
+const templateSubmitBtn = document.querySelector("#template-submit-btn");
 const templateNameInput = document.querySelector("#template-name");
 const templateTypeInput = document.querySelector("#template-type");
 const singleTemplateWrapper = document.querySelector("#single-template-wrapper");
@@ -97,6 +100,7 @@ let poolItems = [];
 let poolGroupNames = {};
 let activeComposer = null;
 let activePoolFilterGroup = "__all__";
+let editingContentTemplateId = null;
 
 const resolveBucketName = (primaryKey, fallbackKey) => {
   const primary = appConfig?.storage?.[primaryKey];
@@ -745,7 +749,7 @@ const populateTemplateSelects = () => {
 
 const renderContentTemplates = (rows) => {
   if (!rows.length) {
-    contentTemplatesBody.innerHTML = `<tr><td colspan="6">Keine Vorlagen vorhanden.</td></tr>`;
+    contentTemplatesBody.innerHTML = `<tr><td colspan="7">Keine Vorlagen vorhanden.</td></tr>`;
     return;
   }
 
@@ -766,11 +770,38 @@ const renderContentTemplates = (rows) => {
         <td>${shortText(row.caption_requirements)}</td>
         <td>${shortText(row.hashtag_requirements)}</td>
         <td>${shortText(row.special_requirements ?? "-")}</td>
+        <td>
+          <button class="icon-btn edit-template-btn" data-id="${row.id}" data-name="${encodeURIComponent(
+            row.name ?? ""
+          )}" data-template-type="${row.template_type}" data-caption-requirements="${encodeURIComponent(
+            row.caption_requirements ?? ""
+          )}" data-hashtag-requirements="${encodeURIComponent(
+            row.hashtag_requirements ?? ""
+          )}" data-special-requirements="${encodeURIComponent(
+            row.special_requirements ?? ""
+          )}" data-image-editing-template-id="${row.image_editing_template_id}" data-carousel-structure="${encodeURIComponent(
+            JSON.stringify(row.carousel_structure ?? [])
+          )}" title="Vorlage bearbeiten">✎</button>
+          <button class="icon-btn danger delete-template-btn" data-id="${row.id}" data-name="${encodeURIComponent(
+            row.name ?? ""
+          )}" title="Vorlage löschen">🗑</button>
+        </td>
       </tr>
     `;
     })
     .join("");
 };
+
+const getLinkedContentTemplatesByImageEditing = (entryId) =>
+  contentTemplateOptions.filter((template) => {
+    if (template.image_editing_template_id === entryId) {
+      return true;
+    }
+    if (!Array.isArray(template.carousel_structure)) {
+      return false;
+    }
+    return template.carousel_structure.some((entry) => Number(entry.template_id) === entryId);
+  });
 
 const renderPostingJobs = (rows) => {
   if (!rows.length) {
@@ -897,6 +928,20 @@ const createImageEditingEntry = async (payload) => {
 
 const createContentTemplate = async (payload) => {
   const { error } = await supabase.from("content_templates").insert(payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const updateContentTemplate = async (templateId, payload) => {
+  const { error } = await supabase.from("content_templates").update(payload).eq("id", templateId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const deleteContentTemplate = async (templateId) => {
+  const { error } = await supabase.from("content_templates").delete().eq("id", templateId);
   if (error) {
     throw new Error(error.message);
   }
@@ -1390,13 +1435,21 @@ const setupEvents = () => {
     message(imageEditingMessage, "Status aktualisiert.");
   });
 
-  openTemplateModalBtn.addEventListener("click", async () => {
+  const prepareTemplateCreate = () => {
+    editingContentTemplateId = null;
+    templateEntryIdInput.value = "";
+    templateModalTitle.textContent = "Neue Vorlage";
+    templateSubmitBtn.textContent = "Vorlage speichern";
     templateForm.reset();
     carouselSelection = [];
     renderCarouselSelection();
     syncTemplateTypeVisibility();
     syncSpecialRequirementsVisibility();
     message(templateFormMessage, "");
+  };
+
+  openTemplateModalBtn.addEventListener("click", async () => {
+    prepareTemplateCreate();
     try {
       await loadImageEditingTemplateOptions();
       templateModal.showModal();
@@ -1497,8 +1550,8 @@ const setupEvents = () => {
     }
 
     try {
-      message(templateFormMessage, "Vorlage wird gespeichert …");
-      await createContentTemplate({
+      message(templateFormMessage, editingContentTemplateId ? "Vorlage wird aktualisiert …" : "Vorlage wird gespeichert …");
+      const payload = {
         template_type: templateType,
         name,
         caption_requirements: captionRequirements,
@@ -1506,10 +1559,16 @@ const setupEvents = () => {
         special_requirements: specialRequirements || null,
         image_editing_template_id: imageEditingTemplateId,
         carousel_structure: carouselStructure,
-      });
+      };
+      if (editingContentTemplateId) {
+        await updateContentTemplate(editingContentTemplateId, payload);
+      } else {
+        await createContentTemplate(payload);
+      }
       templateModal.close();
       await loadContentTemplates();
-      message(contentTemplatesMessage, "Vorlage gespeichert.");
+      message(contentTemplatesMessage, editingContentTemplateId ? "Vorlage aktualisiert." : "Vorlage gespeichert.");
+      prepareTemplateCreate();
     } catch (err) {
       message(templateFormMessage, `Speichern fehlgeschlagen: ${err.message}`, true);
     }
@@ -1650,6 +1709,17 @@ const setupEvents = () => {
         return;
       }
 
+      const linkedTemplates = getLinkedContentTemplatesByImageEditing(id);
+      if (linkedTemplates.length) {
+        const linkedNames = linkedTemplates.map((template) => template.name).join(", ");
+        message(
+          imageEditingMessage,
+          `Ups, diese Bildbearbeitung ist noch mit Vorlage(n) verknüpft: ${linkedNames}. Bitte zuerst die Verknüpfung in den Vorlagen entfernen.`,
+          true
+        );
+        return;
+      }
+
       const accepted = window.confirm("Eintrag wirklich löschen?");
       if (!accepted) {
         return;
@@ -1691,6 +1761,76 @@ const setupEvents = () => {
     } catch (err) {
       toggleButton.disabled = false;
       message(imageEditingMessage, `Aktion fehlgeschlagen: ${err.message}`, true);
+    }
+  });
+
+  contentTemplatesBody.addEventListener("click", async (event) => {
+    const editBtn = event.target.closest(".edit-template-btn");
+    if (editBtn) {
+      try {
+        await loadImageEditingTemplateOptions();
+      } catch (err) {
+        message(contentTemplatesMessage, err.message, true);
+        return;
+      }
+
+      const templateId = Number(editBtn.dataset.id);
+      if (!Number.isFinite(templateId)) {
+        return;
+      }
+
+      editingContentTemplateId = templateId;
+      templateEntryIdInput.value = String(templateId);
+      templateModalTitle.textContent = "Vorlage bearbeiten";
+      templateSubmitBtn.textContent = "Änderungen speichern";
+      templateNameInput.value = decodeURIComponent(editBtn.dataset.name ?? "");
+      templateTypeInput.value = editBtn.dataset.templateType === "carousel" ? "carousel" : "post";
+      captionRequirementsInput.value = decodeURIComponent(editBtn.dataset.captionRequirements ?? "");
+      hashtagRequirementsInput.value = decodeURIComponent(editBtn.dataset.hashtagRequirements ?? "");
+      const specialRequirements = decodeURIComponent(editBtn.dataset.specialRequirements ?? "");
+      hasSpecialRequirementsInput.checked = Boolean(specialRequirements);
+      specialRequirementsInput.value = specialRequirements;
+      const postTemplateId = Number(editBtn.dataset.imageEditingTemplateId);
+      singleTemplateSelect.value = Number.isFinite(postTemplateId) ? String(postTemplateId) : "";
+
+      const parsedStructure = JSON.parse(decodeURIComponent(editBtn.dataset.carouselStructure ?? "[]"));
+      carouselSelection = Array.isArray(parsedStructure)
+        ? parsedStructure
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+            .map((entry) => Number(entry.template_id))
+            .filter((value) => Number.isFinite(value))
+        : [];
+
+      renderCarouselSelection();
+      syncTemplateTypeVisibility();
+      syncSpecialRequirementsVisibility();
+      message(templateFormMessage, "");
+      templateModal.showModal();
+      return;
+    }
+
+    const deleteBtn = event.target.closest(".delete-template-btn");
+    if (!deleteBtn) {
+      return;
+    }
+
+    const templateId = Number(deleteBtn.dataset.id);
+    if (!Number.isFinite(templateId)) {
+      return;
+    }
+
+    const templateName = decodeURIComponent(deleteBtn.dataset.name ?? "Diese Vorlage");
+    const accepted = window.confirm(`Vorlage "${templateName}" wirklich löschen?`);
+    if (!accepted) {
+      return;
+    }
+
+    try {
+      await deleteContentTemplate(templateId);
+      await loadContentTemplates();
+      message(contentTemplatesMessage, `Vorlage "${templateName}" wurde gelöscht.`);
+    } catch (err) {
+      message(contentTemplatesMessage, `Löschen fehlgeschlagen: ${err.message}`, true);
     }
   });
 
