@@ -81,6 +81,12 @@ let contentTemplateOptions = [];
 let poolItems = [];
 let activeComposer = null;
 
+const resolveBucketName = (primaryKey, fallbackKey) => {
+  const primary = appConfig?.storage?.[primaryKey];
+  const fallback = fallbackKey ? appConfig?.storage?.[fallbackKey] : undefined;
+  return primary || fallback || "";
+};
+
 const message = (element, text, isError = false) => {
   element.textContent = text || "";
   element.classList.toggle("error", Boolean(isError));
@@ -560,6 +566,10 @@ const loadImageEditings = async () => {
 };
 
 const uploadImage = async (file, bucketName) => {
+  if (!bucketName) {
+    throw new Error("Kein Storage-Bucket in der Konfiguration hinterlegt.");
+  }
+
   const safeName = `${crypto.randomUUID()}-${file.name.replace(/\s+/g, "_")}`;
   const { error } = await supabase.storage
     .from(bucketName)
@@ -672,7 +682,7 @@ const setupEvents = () => {
 
     try {
       for (const file of files) {
-        const imageUrl = await uploadImage(file, appConfig.storage.imageEditingBucket);
+        const imageUrl = await uploadImage(file, resolveBucketName("imageEditingBucket", "imageBucket"));
         poolItems.unshift({
           id: crypto.randomUUID().slice(0, 8),
           groupId: sharedGroupId,
