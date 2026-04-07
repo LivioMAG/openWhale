@@ -385,10 +385,11 @@ dialog form {
   aspect-ratio: 16 / 9;
   max-height: 54px;
   object-fit: cover;
+  object-position: center;
   border-radius: 8px;
   border: 1px solid var(--border);
   display: block;
-  background: #fff;
+  overflow: hidden;
 }
 
 .pool-drag-photo {
@@ -484,9 +485,8 @@ dialog form {
 }
 
 .composer-slots-track {
-  display: flex;
+  display: grid;
   gap: 0.55rem;
-  overflow-x: auto;
 }
 
 .drop-slot {
@@ -495,6 +495,7 @@ dialog form {
   padding: 0.35rem;
   background: #fff;
   min-width: 220px;
+  cursor: grab;
 }
 
 .drop-slot.drag-over {
@@ -502,21 +503,42 @@ dialog form {
   background: #edf5ff;
 }
 
-.drop-slot img {
-  width: auto;
-  max-width: 100%;
-  max-height: 50px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  padding: 2px;
-  background: #fff;
-}
-
 .slot-preview {
   margin-top: 0.35rem;
   min-height: 56px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #f8f9ff;
+}
+
+.slot-preview img,
+.slot-preview video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.slot-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.slot-meta {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.slot-template-label {
+  font-size: 0.82rem;
+  color: var(--muted);
 }
 
 @media (max-width: 900px) {

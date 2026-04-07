@@ -238,6 +238,36 @@ const buildComposerMarkup = () => {
   `;
 };
 
+const buildComposerSlotsMarkup = (slots, assignments = {}) =>
+  slots
+    .map((slot, index) => {
+      const templateLabel = getTemplateLabelById(slot.templateRef);
+      const assigned = assignments[slot.slotKey];
+      const assignedItem = assigned ? poolItems.find((item) => item.id === assigned.poolId) : null;
+      const hasAssignedItem = Boolean(assignedItem);
+      return `
+      <div class="drop-slot" data-slot-key="${slot.slotKey}" draggable="true" data-slot-index="${index}">
+        <div class="slot-head">
+          <div class="slot-meta ${hasAssignedItem ? "hidden" : ""}" data-slot-meta="${slot.slotKey}">
+            <strong>${slot.label}</strong>
+            <span class="slot-template-label">${templateLabel}</span>
+          </div>
+          <button type="button" class="icon-btn ghost slot-info-btn" data-template-ref="${slot.templateRef}" title="Bildbearbeitung anzeigen">ⓘ</button>
+        </div>
+        <div class="slot-preview" data-slot-preview="${slot.slotKey}">
+          ${
+            hasAssignedItem
+              ? assignedItem.mediaType === "video"
+                ? `<video src="${assignedItem.url}" controls muted preload="metadata"></video>`
+                : `<img src="${assignedItem.url}" alt="${assignedItem.name}" loading="lazy" />`
+              : "Kein Bild zugewiesen."
+          }
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+
 const renderComposerSlots = (templateId) => {
   const selectedTemplate = contentTemplateOptions.find((item) => item.id === Number(templateId));
   const slotsWrap = compositionArea.querySelector("#composer-slots");
@@ -258,28 +288,49 @@ const renderComposerSlots = (templateId) => {
 
   activeComposer = {
     templateId: selectedTemplate.id,
+    templateName: selectedTemplate.name,
     type: selectedTemplate.template_type,
     slots,
     assignments: {},
     postInfo: "",
+    captionRequirements: selectedTemplate.caption_requirements ?? "",
+    hashtagRequirements: selectedTemplate.hashtag_requirements ?? "",
+    specialRequirements: selectedTemplate.special_requirements ?? "",
   };
 
-  const slotMarkup = slots
-    .map(
-      (slot) => `
-      <div class="drop-slot" data-slot-key="${slot.slotKey}">
-        <strong>${slot.label}</strong> (Vorlage #${slot.templateRef})
-        <div class="slot-preview" data-slot-preview="${slot.slotKey}">Kein Bild zugewiesen.</div>
-      </div>
-    `
-    )
-    .join("");
+  const slotMarkup = buildComposerSlotsMarkup(slots, activeComposer.assignments);
 
   slotsWrap.innerHTML = `
     <div class="composer-workspace">
       <label class="composer-post-info">
         Infos zum Post
         <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
+      </label>
+      <div class="composer-slots-track">${slotMarkup}</div>
+    </div>
+  `;
+};
+
+const reorderComposerSlots = (fromIndex, toIndex) => {
+  if (!activeComposer || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+    return;
+  }
+  if (fromIndex >= activeComposer.slots.length || toIndex >= activeComposer.slots.length) {
+    return;
+  }
+  const [moved] = activeComposer.slots.splice(fromIndex, 1);
+  activeComposer.slots.splice(toIndex, 0, moved);
+
+  const slotsWrap = compositionArea.querySelector("#composer-slots");
+  if (!slotsWrap) {
+    return;
+  }
+  const slotMarkup = buildComposerSlotsMarkup(activeComposer.slots, activeComposer.assignments);
+  slotsWrap.innerHTML = `
+    <div class="composer-workspace">
+      <label class="composer-post-info">
+        Infos zum Post
+        <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post">${activeComposer.postInfo ?? ""}</textarea>
       </label>
       <div class="composer-slots-track">${slotMarkup}</div>
     </div>
@@ -301,6 +352,8 @@ const handleAssignment = (slotKey, poolId) => {
   if (!preview) {
     return;
   }
+  const slotMeta = compositionArea.querySelector(`[data-slot-meta="${slotKey}"]`);
+  slotMeta?.classList.add("hidden");
 
   preview.innerHTML =
     poolItem.mediaType === "video"
@@ -338,6 +391,8 @@ const removePoolItem = (poolId) => {
       if (assignment?.poolId === poolId) {
         delete activeComposer.assignments[slotKey];
         const preview = compositionArea.querySelector(`[data-slot-preview="${slotKey}"]`);
+        const slotMeta = compositionArea.querySelector(`[data-slot-meta="${slotKey}"]`);
+        slotMeta?.classList.remove("hidden");
         if (preview) {
           preview.textContent = "Kein Bild zugewiesen.";
         }
@@ -370,7 +425,53 @@ const validateComposer = () => {
     return;
   }
 
-  message(compositionMessage, "Prüfung erfolgreich. Du kannst im nächsten Schritt weiterverarbeiten.");
+  const selectedTemplate = contentTemplateOptions.find((item) => item.id === activeComposer.templateId);
+  const usedSlots = activeComposer.slots
+    .map((slot, index) => ({ slot, index, assignment: activeComposer.assignments[slot.slotKey] }))
+    .filter((entry) => Boolean(entry.assignment?.poolId))
+    .map(({ slot, index, assignment }) => {
+      const media = poolItems.find((item) => item.id === assignment.poolId);
+      const templateOption = getTemplateOptionById(slot.templateRef);
+      return {
+        position: index + 1,
+        slot: slot.slotKey,
+        type: media?.mediaType ?? "image",
+        file_name: media?.name ?? "",
+        file_url: media?.url ?? "",
+        image_editing_id: slot.templateRef,
+        image_editing_name: templateOption?.name ?? getTemplateLabelById(slot.templateRef),
+        image_editing_instructions: templateOption?.editing_instructions ?? null,
+      };
+    });
+
+  const summaryPayload = {
+    content_type: activeComposer.type,
+    is_carousel: activeComposer.type === "carousel",
+    template: {
+      id: selectedTemplate?.id ?? activeComposer.templateId,
+      name: selectedTemplate?.name ?? activeComposer.templateName,
+    },
+    post_info: activeComposer.postInfo.trim(),
+    caption_requirements: activeComposer.captionRequirements,
+    hashtag_requirements: activeComposer.hashtagRequirements,
+    special_requirements: activeComposer.specialRequirements || null,
+    media_items: usedSlots,
+  };
+
+  const prettySummary = [
+    `Vorlage: ${summaryPayload.template.name} (#${summaryPayload.template.id})`,
+    `Typ: ${summaryPayload.is_carousel ? "Karussell" : "Post"}`,
+    `Kurzinfo: ${summaryPayload.post_info}`,
+    `Caption: ${summaryPayload.caption_requirements || "-"}`,
+    `Hashtags: ${summaryPayload.hashtag_requirements || "-"}`,
+    `Spezielle Hinweise: ${summaryPayload.special_requirements || "-"}`,
+    "",
+    "JSONB-Vorschau:",
+    JSON.stringify(summaryPayload, null, 2),
+  ].join("\n");
+
+  openTextModal("Zusammenfassung für Weiter", prettySummary);
+  message(compositionMessage, "Prüfung erfolgreich. Zusammenfassung wurde geöffnet.");
 };
 
 const getStatusLabel = (row) => {
@@ -531,8 +632,10 @@ const renderImageEditings = (rows) => {
     .join("");
 };
 
+const getTemplateOptionById = (templateId) => imageEditingTemplateOptions.find((option) => option.id === templateId);
+
 const getTemplateLabelById = (templateId) => {
-  const match = imageEditingTemplateOptions.find((option) => option.id === templateId);
+  const match = getTemplateOptionById(templateId);
   if (!match) {
     return `Vorlage #${templateId}`;
   }
@@ -631,7 +734,7 @@ const renderContentTemplates = (rows) => {
 const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
-    .select("id, name")
+    .select("id, name, editing_instructions")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1060,10 +1163,34 @@ const setupEvents = () => {
   });
 
   compositionArea.addEventListener("click", (event) => {
+    const slotInfoBtn = event.target.closest(".slot-info-btn");
+    if (slotInfoBtn) {
+      const templateRef = Number(slotInfoBtn.dataset.templateRef);
+      const templateOption = getTemplateOptionById(templateRef);
+      openTextModal(
+        `Bildbearbeitung: ${templateOption?.name ?? `Vorlage #${templateRef}`}`,
+        templateOption?.editing_instructions || "Keine Bildbearbeitung hinterlegt."
+      );
+      return;
+    }
+
     const nextBtn = event.target.closest("#composer-next");
     if (nextBtn) {
       validateComposer();
     }
+  });
+
+  compositionArea.addEventListener("dragstart", (event) => {
+    const slot = event.target.closest(".drop-slot");
+    if (!slot) {
+      return;
+    }
+    const slotIndex = Number(slot.dataset.slotIndex);
+    if (!Number.isFinite(slotIndex)) {
+      return;
+    }
+    event.dataTransfer?.setData("text/slot-index", String(slotIndex));
+    event.dataTransfer.effectAllowed = "move";
   });
 
   document.addEventListener("dragstart", (event) => {
@@ -1102,6 +1229,14 @@ const setupEvents = () => {
 
     event.preventDefault();
     slot.classList.remove("drag-over");
+    const draggedSlot = Number(event.dataTransfer?.getData("text/slot-index"));
+    const dropSlotIndex = Number(slot.dataset.slotIndex);
+    if (Number.isFinite(draggedSlot) && Number.isFinite(dropSlotIndex) && activeComposer?.type === "carousel") {
+      reorderComposerSlots(draggedSlot, dropSlotIndex);
+      message(compositionMessage, "Slots wurden neu sortiert.");
+      return;
+    }
+
     const poolId = event.dataTransfer?.getData("text/plain");
     const slotKey = slot.dataset.slotKey;
     if (!poolId || !slotKey) {
