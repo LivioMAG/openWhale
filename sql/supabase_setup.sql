@@ -99,6 +99,13 @@ create policy "auth users can update image_editings"
   using (true)
   with check (true);
 
+drop policy if exists "auth users can delete image_editings" on public.image_editings;
+create policy "auth users can delete image_editings"
+  on public.image_editings
+  for delete
+  to authenticated
+  using (true);
+
 -- Storage Buckets für Uploads
 insert into storage.buckets (id, name, public)
 values ('template-images', 'template-images', true)
@@ -239,6 +246,13 @@ create policy "auth users can update content_templates"
   to authenticated
   using (true)
   with check (true);
+
+drop policy if exists "auth users can delete content_templates" on public.content_templates;
+create policy "auth users can delete content_templates"
+  on public.content_templates
+  for delete
+  to authenticated
+  using (true);
 
 -- =========================================
 -- Medienpool für Post-Vorbereitung (Bilder + Videos + Gruppen)
