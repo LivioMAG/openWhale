@@ -320,6 +320,97 @@ dialog form {
   font-size: 0.85rem;
 }
 
+.pool-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.pool-column {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.pool-list,
+.composition-area {
+  margin-top: 0.7rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 0.65rem;
+  min-height: 260px;
+  background: #fafbff;
+}
+
+.pool-group {
+  margin-bottom: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.45rem;
+  background: #fff;
+}
+
+.pool-group h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+}
+
+.pool-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.5rem;
+}
+
+.pool-item {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.35rem;
+  background: #f7f9ff;
+  cursor: grab;
+}
+
+.pool-item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.pool-meta {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.composer {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.drop-slot {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+.drop-slot.drag-over {
+  border-color: var(--primary);
+  background: #edf5ff;
+}
+
+.drop-slot img {
+  width: min(220px, 100%);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 900px) {
+  .pool-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .template-card img {
   width: 100%;
   aspect-ratio: 16/10;
