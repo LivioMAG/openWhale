@@ -147,6 +147,29 @@ const uploadImage = async (file, bucketName) => {
   return data.publicUrl;
 };
 
+const createImageEditingEntry = async (payload) => {
+  const { error } = await supabase.from("image_editings").insert(payload);
+  if (!error) {
+    return;
+  }
+
+  const missingLegacyColumn =
+    error.code === "23502" && /null value in column "image_editing"/i.test(error.message ?? "");
+
+  if (!missingLegacyColumn) {
+    throw new Error(error.message);
+  }
+
+  const { error: legacyError } = await supabase.from("image_editings").insert({
+    ...payload,
+    image_editing: false,
+  });
+
+  if (legacyError) {
+    throw new Error(legacyError.message);
+  }
+};
+
 const setEntryActiveState = async (entryId, nextActive) => {
   const { error } = await supabase.from("image_editings").update({ active: nextActive }).eq("id", entryId);
 
@@ -260,7 +283,7 @@ const setupEvents = () => {
         templateImgUrl = await uploadImage(templateImgFile, appConfig.storage.templateBucket);
       }
 
-      const { error } = await supabase.from("image_editings").insert({
+      await createImageEditingEntry({
         template: isTemplate,
         template_img_url: templateImgUrl,
         variable_template_text: isTemplate ? templateHasVariableText : false,
@@ -270,10 +293,6 @@ const setupEvents = () => {
         image: false,
         active: false,
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
 
       message(createMessage, "Eintrag hinzugefügt (Status: Offline).", false);
       createModal.close();
