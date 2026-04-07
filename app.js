@@ -44,10 +44,32 @@ const textViewModal = document.querySelector("#text-view-modal");
 const textViewTitle = document.querySelector("#text-view-title");
 const textViewContent = document.querySelector("#text-view-content");
 const closeTextViewBtn = document.querySelector("#close-text-view");
+const openTemplateModalBtn = document.querySelector("#open-template-modal");
+const contentTemplatesBody = document.querySelector("#content-templates-body");
+const contentTemplatesMessage = document.querySelector("#content-templates-message");
+const templateModal = document.querySelector("#template-modal");
+const templateForm = document.querySelector("#template-form");
+const templateNameInput = document.querySelector("#template-name");
+const templateTypeInput = document.querySelector("#template-type");
+const singleTemplateWrapper = document.querySelector("#single-template-wrapper");
+const singleTemplateSelect = document.querySelector("#single-template-select");
+const carouselTemplateWrapper = document.querySelector("#carousel-template-wrapper");
+const carouselTemplateSelect = document.querySelector("#carousel-template-select");
+const addCarouselTemplateBtn = document.querySelector("#add-carousel-template");
+const carouselSelectedList = document.querySelector("#carousel-selected-list");
+const captionRequirementsInput = document.querySelector("#caption-requirements");
+const hashtagRequirementsInput = document.querySelector("#hashtag-requirements");
+const hasSpecialRequirementsInput = document.querySelector("#has-special-requirements");
+const specialRequirementsWrapper = document.querySelector("#special-requirements-wrapper");
+const specialRequirementsInput = document.querySelector("#special-requirements");
+const cancelTemplateModalBtn = document.querySelector("#cancel-template-modal");
+const templateFormMessage = document.querySelector("#template-form-message");
 
 let supabase;
 let appConfig;
 let imageEditingTemplates = [];
+let imageEditingTemplateOptions = [];
+let carouselSelection = [];
 
 const message = (element, text, isError = false) => {
   element.textContent = text || "";
@@ -224,6 +246,130 @@ const renderImageEditings = (rows) => {
     .join("");
 };
 
+const getTemplateLabelById = (templateId) => {
+  const match = imageEditingTemplateOptions.find((option) => option.id === templateId);
+  if (!match) {
+    return `Vorlage #${templateId}`;
+  }
+  return match.name ?? `Vorlage #${templateId}`;
+};
+
+const serializeCarouselStructure = () =>
+  carouselSelection.map((templateId, index) => ({
+    position: index + 1,
+    template_id: templateId,
+  }));
+
+const syncSpecialRequirementsVisibility = () => {
+  const visible = hasSpecialRequirementsInput.checked;
+  specialRequirementsWrapper.classList.toggle("hidden", !visible);
+  if (!visible) {
+    specialRequirementsInput.value = "";
+  }
+};
+
+const renderCarouselSelection = () => {
+  if (!carouselSelection.length) {
+    carouselSelectedList.innerHTML = "<li>Keine Bildbearbeitung gewählt.</li>";
+    return;
+  }
+
+  carouselSelectedList.innerHTML = carouselSelection
+    .map(
+      (templateId, index) => `
+      <li>
+        <span>${index + 1}. ${getTemplateLabelById(templateId)}</span>
+        <span class="carousel-controls">
+          <button type="button" class="ghost carousel-up-btn" data-index="${index}" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" class="ghost carousel-down-btn" data-index="${index}" ${
+            index === carouselSelection.length - 1 ? "disabled" : ""
+          }>↓</button>
+          <button type="button" class="danger carousel-remove-btn" data-index="${index}">Entfernen</button>
+        </span>
+      </li>
+    `
+    )
+    .join("");
+};
+
+const syncTemplateTypeVisibility = () => {
+  const isCarousel = templateTypeInput.value === "carousel";
+  singleTemplateWrapper.classList.toggle("hidden", isCarousel);
+  carouselTemplateWrapper.classList.toggle("hidden", !isCarousel);
+};
+
+const populateTemplateSelects = () => {
+  if (!imageEditingTemplateOptions.length) {
+    const fallbackOption = '<option value="">Keine Bildbearbeitungsvorlagen verfügbar</option>';
+    singleTemplateSelect.innerHTML = fallbackOption;
+    carouselTemplateSelect.innerHTML = fallbackOption;
+    return;
+  }
+
+  const optionsHtml = imageEditingTemplateOptions
+    .map((row) => `<option value="${row.id}">${row.name ?? `Vorlage #${row.id}`}</option>`)
+    .join("");
+
+  singleTemplateSelect.innerHTML = optionsHtml;
+  carouselTemplateSelect.innerHTML = optionsHtml;
+};
+
+const renderContentTemplates = (rows) => {
+  if (!rows.length) {
+    contentTemplatesBody.innerHTML = `<tr><td colspan="6">Keine Vorlagen vorhanden.</td></tr>`;
+    return;
+  }
+
+  contentTemplatesBody.innerHTML = rows
+    .map((row) => {
+      const imageEditingText =
+        row.template_type === "post"
+          ? getTemplateLabelById(row.image_editing_template_id)
+          : (Array.isArray(row.carousel_structure) ? row.carousel_structure : [])
+              .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+              .map((entry) => `${entry.position}. ${getTemplateLabelById(entry.template_id)}`)
+              .join(" | ");
+      return `
+      <tr>
+        <td>${row.name}</td>
+        <td>${row.template_type === "post" ? "Post" : "Karussell"}</td>
+        <td>${imageEditingText || "-"}</td>
+        <td>${shortText(row.caption_requirements)}</td>
+        <td>${shortText(row.hashtag_requirements)}</td>
+        <td>${shortText(row.special_requirements ?? "-")}</td>
+      </tr>
+    `;
+    })
+    .join("");
+};
+
+const loadImageEditingTemplateOptions = async () => {
+  const { data, error } = await supabase
+    .from("image_editings")
+    .select("id, name")
+    .eq("template", true)
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw new Error(`Bildbearbeitungsvorlagen konnten nicht geladen werden: ${error.message}`);
+  }
+
+  imageEditingTemplateOptions = data ?? [];
+  populateTemplateSelects();
+};
+
+const loadContentTemplates = async () => {
+  const { data, error } = await supabase.from("content_templates").select("*").order("created_at", { ascending: false });
+
+  if (error) {
+    message(contentTemplatesMessage, `Fehler beim Laden: ${error.message}`, true);
+    return;
+  }
+
+  renderContentTemplates(data ?? []);
+  message(contentTemplatesMessage, "");
+};
+
 const loadImageEditings = async () => {
   const { data, error } = await supabase
     .from("image_editings")
@@ -276,6 +422,13 @@ const createImageEditingEntry = async (payload) => {
   }
 };
 
+const createContentTemplate = async (payload) => {
+  const { error } = await supabase.from("content_templates").insert(payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
 const setEntryActiveState = async (entryId, nextActive) => {
   const { error } = await supabase.from("image_editings").update({ active: nextActive }).eq("id", entryId);
 
@@ -308,6 +461,8 @@ const openWorkspace = async (email) => {
   loginScreen.classList.add("hidden");
   workspace.classList.remove("hidden");
   userEmail.textContent = email;
+  await loadImageEditingTemplateOptions();
+  await loadContentTemplates();
   await loadImageEditings();
 };
 
@@ -363,7 +518,134 @@ const setupEvents = () => {
   refreshImageEditingBtn.addEventListener("click", async () => {
     message(imageEditingMessage, "Status wird aktualisiert …");
     await loadImageEditings();
+    await loadImageEditingTemplateOptions();
+    await loadContentTemplates();
     message(imageEditingMessage, "Status aktualisiert.");
+  });
+
+  openTemplateModalBtn.addEventListener("click", async () => {
+    templateForm.reset();
+    carouselSelection = [];
+    renderCarouselSelection();
+    syncTemplateTypeVisibility();
+    syncSpecialRequirementsVisibility();
+    message(templateFormMessage, "");
+    try {
+      await loadImageEditingTemplateOptions();
+      templateModal.showModal();
+    } catch (err) {
+      message(contentTemplatesMessage, err.message, true);
+    }
+  });
+
+  cancelTemplateModalBtn.addEventListener("click", () => templateModal.close());
+  templateTypeInput.addEventListener("change", syncTemplateTypeVisibility);
+  hasSpecialRequirementsInput.addEventListener("change", syncSpecialRequirementsVisibility);
+
+  addCarouselTemplateBtn.addEventListener("click", () => {
+    if (carouselSelection.length >= 10) {
+      message(templateFormMessage, "Maximal 10 Bildbearbeitungen für ein Karussell erlaubt.", true);
+      return;
+    }
+
+    const templateId = Number(carouselTemplateSelect.value);
+    if (!Number.isFinite(templateId)) {
+      message(templateFormMessage, "Bitte zuerst eine gültige Bildbearbeitung wählen.", true);
+      return;
+    }
+
+    carouselSelection.push(templateId);
+    renderCarouselSelection();
+    message(templateFormMessage, "");
+  });
+
+  carouselSelectedList.addEventListener("click", (event) => {
+    const upBtn = event.target.closest(".carousel-up-btn");
+    if (upBtn) {
+      const index = Number(upBtn.dataset.index);
+      if (index > 0) {
+        [carouselSelection[index - 1], carouselSelection[index]] = [carouselSelection[index], carouselSelection[index - 1]];
+        renderCarouselSelection();
+      }
+      return;
+    }
+
+    const downBtn = event.target.closest(".carousel-down-btn");
+    if (downBtn) {
+      const index = Number(downBtn.dataset.index);
+      if (index < carouselSelection.length - 1) {
+        [carouselSelection[index + 1], carouselSelection[index]] = [carouselSelection[index], carouselSelection[index + 1]];
+        renderCarouselSelection();
+      }
+      return;
+    }
+
+    const removeBtn = event.target.closest(".carousel-remove-btn");
+    if (removeBtn) {
+      const index = Number(removeBtn.dataset.index);
+      carouselSelection.splice(index, 1);
+      renderCarouselSelection();
+    }
+  });
+
+  templateForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const templateType = templateTypeInput.value;
+    const name = templateNameInput.value.trim();
+    const captionRequirements = captionRequirementsInput.value.trim();
+    const hashtagRequirements = hashtagRequirementsInput.value.trim();
+    const specialRequirements = hasSpecialRequirementsInput.checked ? specialRequirementsInput.value.trim() : "";
+
+    if (!name || !captionRequirements || !hashtagRequirements) {
+      message(templateFormMessage, "Name, Caption und Hashtags sind Pflichtfelder.", true);
+      return;
+    }
+
+    if (hasSpecialRequirementsInput.checked && !specialRequirements) {
+      message(templateFormMessage, "Bitte gib die speziellen Hinweise an.", true);
+      return;
+    }
+
+    let imageEditingTemplateId = Number(singleTemplateSelect.value);
+    let carouselStructure = null;
+
+    if (templateType === "post") {
+      if (!Number.isFinite(imageEditingTemplateId)) {
+        message(templateFormMessage, "Für einen Post muss genau eine Bildbearbeitung gewählt werden.", true);
+        return;
+      }
+    } else {
+      if (!carouselSelection.length) {
+        message(templateFormMessage, "Für ein Karussell musst du mindestens eine Bildbearbeitung hinzufügen.", true);
+        return;
+      }
+      if (carouselSelection.length > 10) {
+        message(templateFormMessage, "Für ein Karussell sind maximal 10 Bildbearbeitungen erlaubt.", true);
+        return;
+      }
+
+      imageEditingTemplateId = carouselSelection[0];
+      carouselStructure = serializeCarouselStructure();
+    }
+
+    try {
+      message(templateFormMessage, "Vorlage wird gespeichert …");
+      await createContentTemplate({
+        template_type: templateType,
+        name,
+        caption_requirements: captionRequirements,
+        hashtag_requirements: hashtagRequirements,
+        special_requirements: specialRequirements || null,
+        image_editing_template_id: imageEditingTemplateId,
+        carousel_structure: carouselStructure,
+      });
+      templateModal.close();
+      await loadContentTemplates();
+      message(contentTemplatesMessage, "Vorlage gespeichert.");
+    } catch (err) {
+      message(templateFormMessage, `Speichern fehlgeschlagen: ${err.message}`, true);
+    }
   });
 
   openCreateModalBtn.addEventListener("click", () => {
@@ -575,6 +857,7 @@ const setupEvents = () => {
     setInterval(() => {
       if (!workspace.classList.contains("hidden")) {
         loadImageEditings();
+        loadContentTemplates();
       }
     }, appConfig.polling.imageEditingStatusMs);
   }

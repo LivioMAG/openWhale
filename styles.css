@@ -61,12 +61,14 @@ label {
 
 input,
 textarea,
+select,
 button {
   font: inherit;
 }
 
 input,
-textarea {
+textarea,
+select {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.58rem 0.68rem;
@@ -277,6 +279,35 @@ dialog form {
 
 .template-card h4 {
   margin: 0;
+}
+
+.inline-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.carousel-selected-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.carousel-selected-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.4rem 0.55rem;
+  background: #f7f9ff;
+}
+
+.carousel-controls {
+  display: inline-flex;
+  gap: 0.3rem;
 }
 
 .template-card p {
