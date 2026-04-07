@@ -12,6 +12,9 @@ const tabPanels = document.querySelectorAll(".tab-panel");
 const uploadPoolFilesBtn = document.querySelector("#upload-pool-files");
 const poolFileInput = document.querySelector("#pool-file-input");
 const poolGroupSelect = document.querySelector("#pool-group-select");
+const poolFilterGroup = document.querySelector("#pool-filter-group");
+const poolNewGroupNameInput = document.querySelector("#pool-new-group-name");
+const poolCreateGroupBtn = document.querySelector("#pool-create-group");
 const poolList = document.querySelector("#pool-list");
 const poolMessage = document.querySelector("#pool-message");
 const poolPreviewModal = document.querySelector("#pool-preview-modal");
@@ -87,6 +90,7 @@ let contentTemplateOptions = [];
 let poolItems = [];
 let poolGroupNames = {};
 let activeComposer = null;
+let activePoolFilterGroup = "__all__";
 
 const resolveBucketName = (primaryKey, fallbackKey) => {
   const primary = appConfig?.storage?.[primaryKey];
@@ -134,6 +138,8 @@ const renderPoolGroupOptions = () => {
     .map(([groupId, label]) => `<option value="${groupId}">${label}</option>`)
     .join("");
   poolGroupSelect.innerHTML = `<option value="">Neue/keine Gruppe</option>${options}`;
+  poolFilterGroup.innerHTML = `<option value="__all__">Alle Gruppen</option><option value="__none__">Ohne Gruppe</option>${options}`;
+  poolFilterGroup.value = activePoolFilterGroup;
 };
 
 const renderPoolItems = () => {
@@ -157,7 +163,14 @@ const renderPoolItems = () => {
     )
     .join("");
 
-  const mediaRows = poolItems
+  const visibleItems =
+    activePoolFilterGroup === "__all__"
+      ? poolItems
+      : activePoolFilterGroup === "__none__"
+        ? poolItems.filter((item) => !item.groupId)
+        : poolItems.filter((item) => item.groupId === activePoolFilterGroup);
+
+  const mediaRows = visibleItems
     .map(
       (item) => `
       <tr class="pool-item" draggable="true" data-pool-id="${item.id}" title="In Slot ziehen">
@@ -170,7 +183,18 @@ const renderPoolItems = () => {
         <td>${getMediaTypeLabel(item.mediaType)}</td>
         <td>${getPoolGroupLabel(item.groupId)}</td>
         <td>
+          <div class="star-rating">
+            ${[1, 2, 3]
+              .map(
+                (star) =>
+                  `<button type="button" class="star-btn ${Number(item.rating ?? 0) >= star ? "active" : ""}" data-action="set-rating" data-pool-id="${item.id}" data-rating="${star}" title="${star} Stern${star > 1 ? "e" : ""}">★</button>`
+              )
+              .join("")}
+          </div>
+        </td>
+        <td>
           <button type="button" class="icon-btn ghost" data-action="rename-item" data-pool-id="${item.id}" title="Datei umbenennen">✎</button>
+          <button type="button" class="icon-btn ghost" data-action="change-group" data-pool-id="${item.id}" title="Gruppe wechseln">⇄</button>
           <button type="button" class="icon-btn danger" data-action="delete-item" data-pool-id="${item.id}" title="Datei löschen">🗑</button>
         </td>
       </tr>
@@ -182,9 +206,9 @@ const renderPoolItems = () => {
     <div class="table-wrap">
       <table class="pool-assets-table">
         <thead>
-          <tr><th>Vorschau</th><th>Name</th><th>Typ</th><th>Gruppe</th><th>Aktion</th></tr>
+          <tr><th>Vorschau</th><th>Name</th><th>Typ</th><th>Gruppe</th><th>Sterne</th><th>Aktion</th></tr>
         </thead>
-        <tbody>${mediaRows}</tbody>
+        <tbody>${mediaRows || '<tr><td colspan="6">Keine Medien für den aktuellen Filter.</td></tr>'}</tbody>
       </table>
     </div>
     ${groupActionRows ? `<div class="table-wrap"><table><thead><tr><th colspan="5">Gruppen</th></tr></thead><tbody>${groupActionRows}</tbody></table></div>` : ""}
@@ -235,23 +259,28 @@ const renderComposerSlots = (templateId) => {
     type: selectedTemplate.template_type,
     slots,
     assignments: {},
+    postInfo: "",
   };
 
-  slotsWrap.innerHTML = slots
+  const slotMarkup = slots
     .map(
       (slot) => `
       <div class="drop-slot" data-slot-key="${slot.slotKey}">
         <strong>${slot.label}</strong> (Vorlage #${slot.templateRef})
         <p class="pool-meta">Bild aus dem Pool hier hineinziehen.</p>
         <div class="slot-preview" data-slot-preview="${slot.slotKey}">Kein Bild zugewiesen.</div>
-        <label>
-          Kurztext
-          <textarea data-slot-text="${slot.slotKey}" rows="2" placeholder="Was zeigt dieses Bild?"></textarea>
-        </label>
       </div>
     `
     )
     .join("");
+
+  slotsWrap.innerHTML = `
+    <label>
+      Infos zum Post (einmal pro Vorlage)
+      <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
+    </label>
+    ${slotMarkup}
+  `;
 };
 
 const handleAssignment = (slotKey, poolId) => {
@@ -263,10 +292,7 @@ const handleAssignment = (slotKey, poolId) => {
     return;
   }
 
-  activeComposer.assignments[slotKey] = {
-    poolId,
-    text: activeComposer.assignments[slotKey]?.text ?? "",
-  };
+  activeComposer.assignments[slotKey] = { poolId };
 
   const preview = compositionArea.querySelector(`[data-slot-preview="${slotKey}"]`);
   if (!preview) {
@@ -337,9 +363,8 @@ const validateComposer = () => {
     return;
   }
 
-  const missingTextForAssigned = assignedSlots.some(([, value]) => !(value.text ?? "").trim());
-  if (missingTextForAssigned) {
-    message(compositionMessage, "Bitte für jedes zugewiesene Bild einen Kurztext eintragen.", true);
+  if (!(activeComposer.postInfo ?? "").trim()) {
+    message(compositionMessage, "Bitte einmalige Infos zum Post eintragen.", true);
     return;
   }
 
@@ -724,6 +749,7 @@ const loadPoolAssets = async () => {
     name: row.name,
     url: row.file_url,
     mediaType: row.media_type,
+    rating: row.rating,
   }));
 
   poolGroupNames = {};
@@ -832,6 +858,7 @@ const setupEvents = () => {
           file_url: fileUrl,
           group_id: sharedGroupId,
           group_name: sharedGroupName,
+          rating: null,
         });
       }
 
@@ -904,6 +931,54 @@ const setupEvents = () => {
       return;
     }
 
+    if (action === "set-rating") {
+      const poolId = actionBtn.dataset.poolId;
+      const rating = Number(actionBtn.dataset.rating);
+      if (!poolId || !Number.isFinite(rating)) {
+        return;
+      }
+      try {
+        await updateMediaAsset(poolId, { rating });
+        await loadPoolAssets();
+        message(poolMessage, `Bewertung auf ${rating} Stern${rating > 1 ? "e" : ""} gesetzt.`);
+      } catch (error) {
+        message(poolMessage, `Bewertung fehlgeschlagen: ${error.message}`, true);
+      }
+      return;
+    }
+
+    if (action === "change-group") {
+      const poolId = actionBtn.dataset.poolId;
+      const item = poolItems.find((entry) => entry.id === poolId);
+      if (!item) {
+        return;
+      }
+      const options = ["__none__: Ohne Gruppe", ...Object.entries(poolGroupNames).map(([id, label]) => `${id}: ${label}`)].join(
+        "\n"
+      );
+      const selectedGroup = window.prompt(`Neue Gruppe wählen (ID eingeben):\n${options}`, item.groupId ?? "__none__");
+      if (!selectedGroup) {
+        return;
+      }
+
+      const nextGroupId = selectedGroup === "__none__" ? null : selectedGroup.trim();
+      if (nextGroupId && !poolGroupNames[nextGroupId]) {
+        message(poolMessage, "Unbekannte Gruppen-ID.", true);
+        return;
+      }
+      try {
+        await updateMediaAsset(poolId, {
+          group_id: nextGroupId,
+          group_name: nextGroupId ? getPoolGroupLabel(nextGroupId) : null,
+        });
+        await loadPoolAssets();
+        message(poolMessage, "Gruppe wurde aktualisiert.");
+      } catch (error) {
+        message(poolMessage, `Gruppenwechsel fehlgeschlagen: ${error.message}`, true);
+      }
+      return;
+    }
+
     if (action === "rename-group") {
       const groupId = actionBtn.dataset.groupId;
       if (!groupId) {
@@ -946,6 +1021,25 @@ const setupEvents = () => {
     }
   });
 
+  poolFilterGroup.addEventListener("change", () => {
+    activePoolFilterGroup = poolFilterGroup.value || "__all__";
+    renderPoolItems();
+  });
+
+  poolCreateGroupBtn.addEventListener("click", () => {
+    const groupName = poolNewGroupNameInput.value.trim();
+    if (!groupName) {
+      message(poolMessage, "Bitte zuerst einen Gruppennamen eingeben.", true);
+      return;
+    }
+    const groupId = crypto.randomUUID().slice(0, 8);
+    poolGroupNames[groupId] = groupName;
+    poolGroupSelect.value = groupId;
+    poolNewGroupNameInput.value = "";
+    renderPoolItems();
+    message(poolMessage, `Gruppe "${groupName}" erstellt. Du kannst jetzt direkt hinein hochladen.`);
+  });
+
   createCompositionBtn.addEventListener("click", () => {
     if (!contentTemplateOptions.length) {
       message(compositionMessage, "Keine Vorlagen vorhanden. Bitte erst unter 'Vorlagen' anlegen.", true);
@@ -965,17 +1059,11 @@ const setupEvents = () => {
       return;
     }
 
-    const slotText = event.target.closest("[data-slot-text]");
-    if (!slotText || !activeComposer) {
+    const postInfoInput = event.target.closest("#composer-post-info");
+    if (!postInfoInput || !activeComposer) {
       return;
     }
-
-    const slotKey = slotText.dataset.slotText;
-    if (!slotKey || !activeComposer.assignments[slotKey]) {
-      return;
-    }
-
-    activeComposer.assignments[slotKey].text = slotText.value;
+    activeComposer.postInfo = postInfoInput.value;
   });
 
   compositionArea.addEventListener("click", (event) => {
