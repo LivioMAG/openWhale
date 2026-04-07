@@ -47,15 +47,28 @@
             <div class="panel-header">
               <div>
                 <h3>Post vorbereiten</h3>
-                <p>Medien hochladen, gruppieren, umbenennen und für Posts/Karussells zuordnen.</p>
+                <p>Medien hochladen, bewerten, gruppieren und für Posts/Karussells zuordnen.</p>
               </div>
               <button id="upload-pool-files" class="ghost">Medien hochladen</button>
             </div>
             <div class="pool-upload-controls">
               <label>
+                Neue Gruppe
+                <div class="inline-row">
+                  <input id="pool-new-group-name" type="text" placeholder="z. B. Produkt A" />
+                  <button id="pool-create-group" type="button" class="ghost">Erstellen</button>
+                </div>
+              </label>
+              <label>
                 Zur Gruppe hinzufügen
                 <select id="pool-group-select">
                   <option value="">Neue/keine Gruppe</option>
+                </select>
+              </label>
+              <label>
+                Nach Gruppe filtern
+                <select id="pool-filter-group">
+                  <option value="__all__">Alle Gruppen</option>
                 </select>
               </label>
             </div>
@@ -70,7 +83,7 @@
             <div class="panel-header">
               <div>
                 <h3>Vorlage anwenden</h3>
-                <p>Rechts: Vorlage wählen, Bilder zuordnen und mit „Weiter“ prüfen.</p>
+                <p>Vorlage wählen, Bilder zuordnen und einmalige Post-Info eintragen.</p>
               </div>
               <button id="create-composition" class="plus" aria-label="Neue Zuordnung anlegen">＋</button>
             </div>

@@ -251,10 +251,16 @@ create table if not exists public.media_assets (
   file_url text not null,
   group_id text,
   group_name text,
+  rating smallint check (rating between 1 and 3),
   created_at timestamptz not null default now()
 );
 
 alter table public.media_assets add column if not exists group_name text;
+alter table public.media_assets add column if not exists rating smallint;
+alter table public.media_assets drop constraint if exists media_assets_rating_range;
+alter table public.media_assets
+  add constraint media_assets_rating_range
+  check (rating is null or rating between 1 and 3);
 
 grant all on table public.media_assets to authenticated;
 alter table public.media_assets enable row level security;
