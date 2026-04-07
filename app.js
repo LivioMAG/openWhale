@@ -18,6 +18,10 @@ const createModal = document.querySelector("#create-modal");
 const cancelModalBtn = document.querySelector("#cancel-modal");
 const createForm = document.querySelector("#create-image-editing-form");
 const createMessage = document.querySelector("#create-message");
+const openHelpModalBtn = document.querySelector("#open-help-modal");
+const closeHelpModalBtn = document.querySelector("#close-help-modal");
+const templateHelpModal = document.querySelector("#template-help-modal");
+const templateHelpList = document.querySelector("#template-help-list");
 
 const editingInstructionsInput = document.querySelector("#editing-instructions");
 const isTemplateInput = document.querySelector("#is-template");
@@ -30,6 +34,7 @@ const templateInfoWrapper = document.querySelector("#template-info-wrapper");
 
 let supabase;
 let appConfig;
+let imageEditingTemplates = [];
 
 const message = (element, text, isError = false) => {
   element.textContent = text || "";
@@ -80,6 +85,54 @@ const syncTemplateInfoVisibility = () => {
 
   if (!showTemplateInfo) {
     templateInfoInput.value = "";
+  }
+};
+
+const renderTemplateHelpList = () => {
+  if (!imageEditingTemplates.length) {
+    templateHelpList.innerHTML = "<p>Keine Vorlagen gefunden.</p>";
+    return;
+  }
+
+  templateHelpList.innerHTML = imageEditingTemplates
+    .map(
+      (template) => `
+      <article class="template-card">
+        <h4>${template.title}</h4>
+        <p>${template.description}</p>
+        ${
+          template.previewImage
+            ? `<img src="${template.previewImage}" alt="Vorschau für ${template.title}" loading="lazy" />`
+            : `<p class="hint">Noch kein Bild hinterlegt (assets möglich).</p>`
+        }
+        <button
+          type="button"
+          class="use-template-btn"
+          data-template-key="${template.key}"
+          data-template-prompt="${template.prompt}"
+        >
+          Vorlage übernehmen
+        </button>
+      </article>
+    `
+    )
+    .join("");
+};
+
+const loadImageEditingTemplates = async () => {
+  try {
+    const response = await fetch("./assets/image-editing-templates.json");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    imageEditingTemplates = Array.isArray(data.templates) ? data.templates : [];
+    renderTemplateHelpList();
+  } catch (error) {
+    imageEditingTemplates = [];
+    templateHelpList.innerHTML =
+      '<p class="message error">Vorlagen konnten nicht geladen werden. Prüfe assets/image-editing-templates.json.</p>';
   }
 };
 
@@ -250,6 +303,19 @@ const setupEvents = () => {
   });
 
   cancelModalBtn.addEventListener("click", () => createModal.close());
+  openHelpModalBtn.addEventListener("click", () => templateHelpModal.showModal());
+  closeHelpModalBtn.addEventListener("click", () => templateHelpModal.close());
+
+  templateHelpList.addEventListener("click", (event) => {
+    const useTemplateBtn = event.target.closest(".use-template-btn");
+    if (!useTemplateBtn) {
+      return;
+    }
+
+    editingInstructionsInput.value = useTemplateBtn.dataset.templatePrompt ?? "";
+    templateHelpModal.close();
+    editingInstructionsInput.focus();
+  });
 
   createForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -350,6 +416,7 @@ const init = async () => {
   }
 
   supabase = createClient(appConfig.supabase.url, appConfig.supabase.anonKey);
+  await loadImageEditingTemplates();
   setupEvents();
   await checkSession();
 };

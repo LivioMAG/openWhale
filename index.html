@@ -94,10 +94,11 @@
     <form id="create-image-editing-form" class="stack" method="dialog">
       <h3>Neue Bildbearbeitung anlegen</h3>
 
-      <label>
-        Bildbearbeitung (Pflicht)
-        <textarea id="editing-instructions" rows="4" required placeholder="Wie soll das spätere Bild bearbeitet werden?"></textarea>
-      </label>
+      <div class="field-head">
+        <label for="editing-instructions">Bildbearbeitung (Pflicht)</label>
+        <button id="open-help-modal" class="ghost" type="button">Hilfe mit Vorlagen</button>
+      </div>
+      <textarea id="editing-instructions" rows="4" required placeholder="Wie soll das spätere Bild bearbeitet werden?"></textarea>
 
       <label class="check-row">
         <input id="is-template" type="checkbox" />
@@ -127,6 +128,19 @@
         <button value="default" type="submit">Hinzufügen</button>
       </div>
       <p id="create-message" class="message" role="status" aria-live="polite"></p>
+    </form>
+  </dialog>
+
+  <dialog id="template-help-modal">
+    <form id="template-help-form" class="stack" method="dialog">
+      <div class="panel-header">
+        <h3>Vorlagen für Bildbearbeitung</h3>
+        <button id="close-help-modal" class="ghost" type="button">Schließen</button>
+      </div>
+      <p>Wähle eine Vorlage aus. Der Text wird automatisch in die Bildbearbeitung übernommen und kann danach frei angepasst werden.</p>
+      <div id="template-help-list" class="template-grid">
+        <p>Vorlagen werden geladen …</p>
+      </div>
     </form>
   </dialog>
 
