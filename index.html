@@ -56,7 +56,7 @@
           <h3>Bildbearbeitung</h3>
           <button id="open-create-modal" class="plus" aria-label="Neue Bildbearbeitung anlegen">＋</button>
         </div>
-        <p>Erstelle und verwalte Bildbearbeitungs-Vorlagen inklusive Template-Upload und Prompt-Daten.</p>
+        <p>Erstelle und verwalte Bildbearbeitungs-Einträge inkl. Upload, Template-Logik und Start-Trigger.</p>
 
         <div class="table-wrap">
           <table>
@@ -65,11 +65,11 @@
                 <th>ID</th>
                 <th>Template</th>
                 <th>Template IMG</th>
-                <th>Variable Template Text</th>
+                <th>Variabler Text</th>
                 <th>Template Info</th>
-                <th>Image Editing</th>
-                <th>Banana2 Prompt</th>
-                <th>Image</th>
+                <th>Bild</th>
+                <th>Status</th>
+                <th>Aktion</th>
               </tr>
             </thead>
             <tbody id="image-editing-body">
@@ -90,34 +90,35 @@
   <dialog id="create-modal">
     <form id="create-image-editing-form" class="stack" method="dialog">
       <h3>Neue Bildbearbeitung anlegen</h3>
+
+      <label>
+        Bild hochladen
+        <input id="image-file" type="file" accept="image/*" required />
+      </label>
+      <img id="image-preview" class="image-preview hidden" alt="Vorschau des hochgeladenen Bildes" />
+
       <label class="check-row">
-        <input id="template" type="checkbox" />
-        Template vorhanden
+        <input id="is-template" type="checkbox" />
+        Als Template markieren
       </label>
-      <label>
-        Template IMG
-        <input id="template-img" type="file" accept="image/*" />
-      </label>
-      <label class="check-row">
-        <input id="variable-template-text" type="checkbox" />
-        Variabler Template Text
-      </label>
-      <label>
-        Template Info
-        <textarea id="template-info" rows="3" placeholder="Beschreibe variable und feste Textbestandteile"></textarea>
-      </label>
-      <label>
-        Image Editing
-        <textarea id="image-editing-description" rows="3" required></textarea>
-      </label>
-      <label>
-        Banana2 Prompt
-        <textarea id="banana2-prompt" rows="3" placeholder="Wird im späteren Prozess verwendet"></textarea>
-      </label>
-      <label class="check-row">
-        <input id="is-image" type="checkbox" checked disabled />
-        Image (immer true)
-      </label>
+
+      <div id="template-fields" class="stack hidden">
+        <label>
+          Template-Image
+          <input id="template-img" type="file" accept="image/*" />
+        </label>
+        <img id="template-preview" class="image-preview hidden" alt="Vorschau des Template-Bildes" />
+
+        <label class="check-row">
+          <input id="template-has-variable-text" type="checkbox" />
+          Template hat variablen Text
+        </label>
+
+        <label id="template-info-wrapper" class="hidden">
+          Template Info
+          <textarea id="template-info" rows="3" placeholder="Beschreibe, welche Textteile editierbar/variabel sind"></textarea>
+        </label>
+      </div>
 
       <div class="modal-actions">
         <button value="cancel" class="ghost" type="button" id="cancel-modal">Abbrechen</button>
