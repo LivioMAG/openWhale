@@ -65,7 +65,7 @@
           <table>
             <thead>
               <tr>
-                <th>ID (Supabase)</th>
+                <th>Name</th>
                 <th>Template</th>
                 <th>Template IMG</th>
                 <th>Variabler Text</th>
@@ -104,6 +104,10 @@
         <input id="is-template" type="checkbox" />
         Ist es ein Template?
       </label>
+      <label>
+        Name
+        <input id="entry-name" type="text" required maxlength="120" placeholder="z. B. Frühlingskampagne 01" />
+      </label>
 
       <div id="template-fields" class="stack hidden">
         <label>
@@ -141,6 +145,40 @@
       <div id="template-help-list" class="template-grid">
         <p>Vorlagen werden geladen …</p>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="edit-modal">
+    <form id="edit-image-editing-form" class="stack" method="dialog">
+      <h3>Eintrag bearbeiten</h3>
+      <input id="edit-entry-id" type="hidden" />
+      <label>
+        Name
+        <input id="edit-entry-name" type="text" required maxlength="120" />
+      </label>
+      <label>
+        Template Textfelder
+        <textarea id="edit-template-info" rows="3"></textarea>
+      </label>
+      <label>
+        Bildbearbeitung
+        <textarea id="edit-editing-instructions" rows="5" required></textarea>
+      </label>
+      <div class="modal-actions">
+        <button value="cancel" class="ghost" type="button" id="cancel-edit-modal">Abbrechen</button>
+        <button value="default" type="submit">Speichern</button>
+      </div>
+      <p id="edit-message" class="message" role="status" aria-live="polite"></p>
+    </form>
+  </dialog>
+
+  <dialog id="text-view-modal">
+    <form class="stack" method="dialog">
+      <div class="panel-header">
+        <h3 id="text-view-title">Details</h3>
+        <button id="close-text-view" class="ghost" type="button">Schließen</button>
+      </div>
+      <pre id="text-view-content" class="text-popup-content"></pre>
     </form>
   </dialog>
 

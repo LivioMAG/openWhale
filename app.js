@@ -24,6 +24,7 @@ const templateHelpModal = document.querySelector("#template-help-modal");
 const templateHelpList = document.querySelector("#template-help-list");
 
 const editingInstructionsInput = document.querySelector("#editing-instructions");
+const entryNameInput = document.querySelector("#entry-name");
 const isTemplateInput = document.querySelector("#is-template");
 const templateFields = document.querySelector("#template-fields");
 const templateImgInput = document.querySelector("#template-img");
@@ -31,6 +32,18 @@ const templatePreview = document.querySelector("#template-preview");
 const templateHasVariableTextInput = document.querySelector("#template-has-variable-text");
 const templateInfoInput = document.querySelector("#template-info");
 const templateInfoWrapper = document.querySelector("#template-info-wrapper");
+const editModal = document.querySelector("#edit-modal");
+const editForm = document.querySelector("#edit-image-editing-form");
+const editEntryIdInput = document.querySelector("#edit-entry-id");
+const editEntryNameInput = document.querySelector("#edit-entry-name");
+const editTemplateInfoInput = document.querySelector("#edit-template-info");
+const editEditingInstructionsInput = document.querySelector("#edit-editing-instructions");
+const cancelEditModalBtn = document.querySelector("#cancel-edit-modal");
+const editMessage = document.querySelector("#edit-message");
+const textViewModal = document.querySelector("#text-view-modal");
+const textViewTitle = document.querySelector("#text-view-title");
+const textViewContent = document.querySelector("#text-view-content");
+const closeTextViewBtn = document.querySelector("#close-text-view");
 
 let supabase;
 let appConfig;
@@ -43,6 +56,17 @@ const message = (element, text, isError = false) => {
 
 const formatBool = (value) => (value ? "Ja" : "Nein");
 const hasPromptResult = (row) => Boolean((row.nano2_prompt ?? row.banana2_prompt ?? "").trim());
+const shortText = (value) => {
+  if (!value) {
+    return "-";
+  }
+
+  if (value.length <= 70) {
+    return value;
+  }
+
+  return `${value.slice(0, 67)}…`;
+};
 
 const getStatusLabel = (row) => {
   if (!row.active) {
@@ -147,7 +171,7 @@ const renderImageEditings = (rows) => {
       const isActive = Boolean(row.active);
       return `
       <tr>
-        <td>${row.id}</td>
+        <td>${row.name ?? `Eintrag #${row.id}`}</td>
         <td>${formatBool(row.template)}</td>
         <td>${
           row.template_img_url
@@ -155,14 +179,43 @@ const renderImageEditings = (rows) => {
             : "-"
         }</td>
         <td>${formatBool(row.variable_template_text)}</td>
-        <td>${row.template_info ?? "-"}</td>
-        <td>${row.editing_instructions ?? "-"}</td>
+        <td>
+          <button class="text-view-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
+            row.template_info ?? ""
+          )}" title="Text komplett anzeigen">${shortText(row.template_info)}</button>
+        </td>
+        <td>
+          <button class="text-view-btn ghost" data-kind="Bildbearbeitung" data-value="${encodeURIComponent(
+            row.editing_instructions ?? ""
+          )}" title="Text komplett anzeigen">${shortText(row.editing_instructions)}</button>
+        </td>
         <td>${getStatusLabel(row)}</td>
         <td>
-          <button class="toggle-active-btn ${isActive ? "danger" : ""}" data-id="${row.id}" data-next-active="${
-            isActive ? "false" : "true"
+          <button class="icon-btn toggle-active-btn ${isActive ? "danger" : ""}" data-id="${
+            row.id
+          }" data-next-active="${isActive ? "false" : "true"}" title="${
+            isActive ? "Offline stellen" : "Online stellen"
           }">
-            ${isActive ? "⏹ Deaktivieren" : "▶ Online stellen"}
+            ${isActive ? "⏻" : "▶"}
+          </button>
+          <button class="icon-btn edit-btn" data-id="${row.id}" data-name="${encodeURIComponent(
+            row.name ?? ""
+          )}" data-template-info="${encodeURIComponent(
+            row.template_info ?? ""
+          )}" data-editing-instructions="${encodeURIComponent(
+            row.editing_instructions ?? ""
+          )}" data-active="${isActive}" title="Bearbeiten" ${isActive ? "disabled" : ""}>
+            ✎
+          </button>
+          <button class="icon-btn delete-btn danger" data-id="${row.id}" data-active="${isActive}" title="Löschen" ${
+            isActive ? "disabled" : ""
+          }>
+            🗑
+          </button>
+          <button class="icon-btn prompt-btn ghost" data-id="${row.id}" data-prompt="${encodeURIComponent(
+            row.nano2_prompt ?? row.banana2_prompt ?? ""
+          )}" title="Prompt anzeigen">
+            ⌘
           </button>
         </td>
       </tr>
@@ -229,6 +282,26 @@ const setEntryActiveState = async (entryId, nextActive) => {
   if (error) {
     throw new Error(error.message);
   }
+};
+
+const updateImageEditingEntry = async (entryId, payload) => {
+  const { error } = await supabase.from("image_editings").update(payload).eq("id", entryId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const deleteImageEditingEntry = async (entryId) => {
+  const { error } = await supabase.from("image_editings").delete().eq("id", entryId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const openTextModal = (title, content) => {
+  textViewTitle.textContent = title;
+  textViewContent.textContent = content || "Kein Inhalt vorhanden.";
+  textViewModal.showModal();
 };
 
 const openWorkspace = async (email) => {
@@ -321,6 +394,7 @@ const setupEvents = () => {
     event.preventDefault();
 
     const editingInstructions = editingInstructionsInput.value.trim();
+    const entryName = entryNameInput.value.trim();
     const isTemplate = isTemplateInput.checked;
     const templateImgFile = templateImgInput.files[0];
     const templateHasVariableText = templateHasVariableTextInput.checked;
@@ -328,6 +402,10 @@ const setupEvents = () => {
 
     if (!editingInstructions) {
       message(createMessage, "Bitte beschreibe, wie das Bild bearbeitet werden soll.", true);
+      return;
+    }
+    if (!entryName) {
+      message(createMessage, "Bitte gib einen Namen ein.", true);
       return;
     }
 
@@ -350,6 +428,7 @@ const setupEvents = () => {
       }
 
       await createImageEditingEntry({
+        name: entryName,
         template: isTemplate,
         template_img_url: templateImgUrl,
         variable_template_text: isTemplate ? templateHasVariableText : false,
@@ -369,6 +448,66 @@ const setupEvents = () => {
   });
 
   imageEditingBody.addEventListener("click", async (event) => {
+    const textViewBtn = event.target.closest(".text-view-btn");
+    if (textViewBtn) {
+      openTextModal(
+        decodeURIComponent(textViewBtn.dataset.kind ?? "Text"),
+        decodeURIComponent(textViewBtn.dataset.value ?? "")
+      );
+      return;
+    }
+
+    const promptBtn = event.target.closest(".prompt-btn");
+    if (promptBtn) {
+      const entryId = promptBtn.dataset.id;
+      const prompt = decodeURIComponent(promptBtn.dataset.prompt ?? "");
+      openTextModal("Prompt", `ID: ${entryId}\nSupervisor-ID: ${entryId}\n\n${prompt || "Kein Prompt vorhanden."}`);
+      return;
+    }
+
+    const editBtn = event.target.closest(".edit-btn");
+    if (editBtn) {
+      if (editBtn.dataset.active === "true") {
+        message(imageEditingMessage, "Bearbeiten ist nur im Offline-Status erlaubt.", true);
+        return;
+      }
+
+      editEntryIdInput.value = editBtn.dataset.id;
+      editEntryNameInput.value = decodeURIComponent(editBtn.dataset.name ?? "");
+      editTemplateInfoInput.value = decodeURIComponent(editBtn.dataset.templateInfo ?? "");
+      editEditingInstructionsInput.value = decodeURIComponent(editBtn.dataset.editingInstructions ?? "");
+      message(editMessage, "");
+      editModal.showModal();
+      return;
+    }
+
+    const deleteBtn = event.target.closest(".delete-btn");
+    if (deleteBtn) {
+      if (deleteBtn.dataset.active === "true") {
+        message(imageEditingMessage, "Löschen ist nur im Offline-Status erlaubt.", true);
+        return;
+      }
+
+      const id = Number(deleteBtn.dataset.id);
+      if (!Number.isFinite(id)) {
+        return;
+      }
+
+      const accepted = window.confirm("Eintrag wirklich löschen?");
+      if (!accepted) {
+        return;
+      }
+
+      try {
+        await deleteImageEditingEntry(id);
+        await loadImageEditings();
+        message(imageEditingMessage, "Eintrag gelöscht.");
+      } catch (err) {
+        message(imageEditingMessage, `Löschen fehlgeschlagen: ${err.message}`, true);
+      }
+      return;
+    }
+
     const toggleButton = event.target.closest(".toggle-active-btn");
     if (!toggleButton) {
       return;
@@ -395,6 +534,40 @@ const setupEvents = () => {
     } catch (err) {
       toggleButton.disabled = false;
       message(imageEditingMessage, `Aktion fehlgeschlagen: ${err.message}`, true);
+    }
+  });
+
+  cancelEditModalBtn.addEventListener("click", () => editModal.close());
+  closeTextViewBtn.addEventListener("click", () => textViewModal.close());
+
+  editForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const id = Number(editEntryIdInput.value);
+    const name = editEntryNameInput.value.trim();
+    const templateInfo = editTemplateInfoInput.value.trim();
+    const editingInstructions = editEditingInstructionsInput.value.trim();
+
+    if (!Number.isFinite(id)) {
+      message(editMessage, "Ungültige ID.", true);
+      return;
+    }
+    if (!name || !editingInstructions) {
+      message(editMessage, "Name und Bildbearbeitung sind Pflicht.", true);
+      return;
+    }
+
+    try {
+      message(editMessage, "Speichern läuft …");
+      await updateImageEditingEntry(id, {
+        name,
+        template_info: templateInfo || null,
+        editing_instructions: editingInstructions,
+      });
+      editModal.close();
+      await loadImageEditings();
+      message(imageEditingMessage, "Eintrag wurde bearbeitet.");
+    } catch (err) {
+      message(editMessage, err.message, true);
     }
   });
 
