@@ -1,7 +1,7 @@
 {
   "supabase": {
     "url": "https://YOUR-PROJECT.supabase.co",
-    "anonKey": "YOUR_SUPABASE_ANON_KEY"
+    "anonKey": "sb_publishable_SfXH8TnNEWfdxNxMKnbL4Q_1mufSNeI"
   },
   "storage": {
     "templateBucket": "template-images"
