@@ -217,6 +217,29 @@ tbody tr:hover {
   border: 1px solid var(--border);
 }
 
+.template-image-link {
+  display: inline-block;
+  width: min(240px, 100%);
+}
+
+.template-image-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #eef2fa;
+}
+
+.muted-cell {
+  color: #98a2b3;
+  background: #f8fafc;
+}
+
+.placeholder {
+  color: #98a2b3;
+}
+
 .message {
   min-height: 1.2rem;
   margin-top: 0.7rem;
