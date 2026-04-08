@@ -380,8 +380,10 @@ dialog form {
   margin: 0;
   padding: 0;
   display: flex;
+  flex-direction: column;
   gap: 0.45rem;
-  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 260px;
   list-style: none;
 }
 
@@ -579,13 +581,17 @@ dialog form {
 
 .composer-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
+  grid-template-columns: minmax(260px, 320px) minmax(260px, 320px);
   gap: 0.6rem;
   align-items: start;
 }
 
 .composer-post-info {
   align-self: stretch;
+}
+
+.composer-post-info textarea {
+  min-height: 160px;
 }
 
 .composer-slots-track {
@@ -603,15 +609,16 @@ dialog form {
 .drop-slot {
   border: 2px dashed var(--border);
   border-radius: 10px;
-  padding: 0.35rem;
+  padding: 0.3rem;
   background: #fff;
-  width: 60px;
-  min-width: 60px;
-  height: 60px;
-  cursor: grab;
-  display: flex;
+  width: 80px;
+  min-width: 80px;
+  height: 80px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.2rem;
   align-items: center;
-  justify-content: center;
+  justify-items: center;
 }
 
 .drop-slot.drag-over {
@@ -622,7 +629,7 @@ dialog form {
 .slot-preview {
   margin-top: 0;
   width: 100%;
-  height: 100%;
+  height: 56px;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -631,7 +638,7 @@ dialog form {
   border-radius: 8px;
   overflow: hidden;
   background: #f8f9ff;
-  padding: 0.15rem;
+  padding: 0;
 }
 
 .slot-preview img,
@@ -654,10 +661,31 @@ dialog form {
   object-position: center;
 }
 
-.drop-slot .slot-head,
-.drop-slot .slot-meta,
+.slot-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475467;
+}
+
 .drop-slot .slot-info-btn {
-  display: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  min-height: 1.2rem;
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.composer-images-box {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.55rem;
+  min-height: 160px;
+}
+
+.composer-images-box h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
 }
 
 .slot-head {
@@ -681,6 +709,11 @@ dialog form {
   .composer-workspace {
     grid-template-columns: 1fr;
   }
+}
+
+#template-modal form {
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .template-card img {
