@@ -752,3 +752,22 @@ dialog form {
   border-radius: 10px;
   background: #fff;
 }
+
+.posting-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.posting-name-cell input {
+  width: 100%;
+}
+
+.posting-output p {
+  margin: 0.2rem 0;
+}
+
+.posting-output ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
+}
