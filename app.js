@@ -87,8 +87,6 @@ const specialRequirementsWrapper = document.querySelector("#special-requirements
 const specialRequirementsInput = document.querySelector("#special-requirements");
 const cancelTemplateModalBtn = document.querySelector("#cancel-template-modal");
 const templateFormMessage = document.querySelector("#template-form-message");
-const postingBody = document.querySelector("#posting-body");
-const postingMessage = document.querySelector("#posting-message");
 
 let supabase;
 let appConfig;
@@ -114,7 +112,6 @@ const message = (element, text, isError = false) => {
 };
 
 const formatBool = (value) => (value ? "Ja" : "Nein");
-const hasPromptResult = (row) => Boolean((row.nano2_prompt ?? row.banana2_prompt ?? "").trim());
 const shortText = (value) => {
   if (!value) {
     return "-";
@@ -125,14 +122,6 @@ const shortText = (value) => {
   }
 
   return `${value.slice(0, 67)}…`;
-};
-
-const shortJson = (value) => {
-  if (!value) {
-    return "-";
-  }
-  const text = JSON.stringify(value);
-  return shortText(text);
 };
 
 const getPoolGroupLabel = (groupId) => {
@@ -472,16 +461,6 @@ const validateComposer = async () => {
     media_items: usedSlots,
   };
 
-  const imageEditingImageMap = usedSlots.map((entry) => {
-    const templateOption = getTemplateOptionById(entry.image_editing_id);
-    return {
-      image_url: entry.file_url,
-      image_editing_id: entry.image_editing_id,
-      edited_image_url: templateOption?.image_url ?? null,
-      edited_image_id: templateOption?.id ?? null,
-    };
-  });
-
   const prettySummary = [
     `Vorlage: ${summaryPayload.template.name} (#${summaryPayload.template.id})`,
     `Typ: ${summaryPayload.is_carousel ? "Karussell" : "Post"}`,
@@ -495,37 +474,12 @@ const validateComposer = async () => {
   ].join("\n");
 
   try {
-    await createPostingJob({
-      content_template_id: summaryPayload.template.id,
-      content_template_name: summaryPayload.template.name,
-      content_type: summaryPayload.content_type,
-      post_input: summaryPayload.post_info,
-      units: summaryPayload.media_items,
-      image_editing_image_map: imageEditingImageMap,
-      payload: summaryPayload,
-      isDone: false,
-    });
-    await loadPostingJobs();
-    setTab("posting");
-    openTextModal("Zusammenfassung für Weiter", prettySummary);
-    message(
-      compositionMessage,
-      'Datensatz wurde in Supabase gespeichert (isDone=false) und unter "Posting" aufgelistet.'
-    );
+    openTextModal("Zusammenfassung", prettySummary);
+    message(compositionMessage, "Zusammenfassung erstellt.");
   } catch (error) {
-    message(compositionMessage, `Speichern in Posting fehlgeschlagen: ${error.message}`, true);
+    message(compositionMessage, `Zusammenfassung konnte nicht erstellt werden: ${error.message}`, true);
   }
 };
-
-const getStatusLabel = (row) => {
-  if (!row.active) {
-    return "Offline";
-  }
-
-  return hasPromptResult(row) ? "Scharf" : "Online (nicht scharf)";
-};
-
-const getPostingStatusLabel = (row) => (row.isDone ? "AI fertig" : "AI arbeitet …");
 
 const setPreview = (input, imgEl) => {
   const file = input.files?.[0];
@@ -613,13 +567,12 @@ const loadImageEditingTemplates = async () => {
 
 const renderImageEditings = (rows) => {
   if (!rows.length) {
-    imageEditingBody.innerHTML = `<tr><td colspan="8">Keine Einträge vorhanden.</td></tr>`;
+    imageEditingBody.innerHTML = `<tr><td colspan="7">Keine Einträge vorhanden.</td></tr>`;
     return;
   }
 
   imageEditingBody.innerHTML = rows
     .map((row) => {
-      const isActive = Boolean(row.active);
       return `
       <tr>
         <td>${row.name ?? `Eintrag #${row.id}`}</td>
@@ -640,29 +593,19 @@ const renderImageEditings = (rows) => {
             row.editing_instructions ?? ""
           )}" title="Text komplett anzeigen">${shortText(row.editing_instructions)}</button>
         </td>
-        <td>${getStatusLabel(row)}</td>
         <td>
-          <button class="icon-btn toggle-active-btn ${isActive ? "danger" : ""}" data-id="${
-            row.id
-          }" data-next-active="${isActive ? "false" : "true"}" title="${
-            isActive ? "Offline stellen" : "Online stellen"
-          }">
-            ${isActive ? "⏻" : "▶"}
-          </button>
           <button class="icon-btn edit-btn" data-id="${row.id}" data-name="${encodeURIComponent(
             row.name ?? ""
           )}" data-template-info="${encodeURIComponent(
             row.template_info ?? ""
           )}" data-editing-instructions="${encodeURIComponent(
             row.editing_instructions ?? ""
-          )}" data-active="${isActive}" data-template="${Boolean(row.template)}" data-variable-template-text="${Boolean(
+          )}" data-template="${Boolean(row.template)}" data-variable-template-text="${Boolean(
             row.variable_template_text
-          )}" title="Bearbeiten" ${isActive ? "disabled" : ""}>
+          )}" title="Bearbeiten">
             ✎
           </button>
-          <button class="icon-btn delete-btn danger" data-id="${row.id}" data-active="${isActive}" title="Löschen" ${
-            isActive ? "disabled" : ""
-          }>
+          <button class="icon-btn delete-btn danger" data-id="${row.id}" title="Löschen">
             🗑
           </button>
           <button class="icon-btn prompt-btn ghost" data-id="${row.id}" data-prompt="${encodeURIComponent(
@@ -803,46 +746,6 @@ const getLinkedContentTemplatesByImageEditing = (entryId) =>
     return template.carousel_structure.some((entry) => Number(entry.template_id) === entryId);
   });
 
-const renderPostingJobs = (rows) => {
-  if (!rows.length) {
-    postingBody.innerHTML = `<tr><td colspan="8">Noch keine Posting-Einträge vorhanden.</td></tr>`;
-    return;
-  }
-
-  postingBody.innerHTML = rows
-    .map((row) => {
-      const templateName = row.content_template_name ?? `Vorlage #${row.content_template_id}`;
-      const units = Array.isArray(row.units) ? row.units : [];
-      const unitNames = units.map((unit) => `${unit.position}. ${unit.image_editing_name || unit.file_name || "-"}`).join(" | ");
-      const imageMap = Array.isArray(row.image_editing_image_map) ? row.image_editing_image_map : [];
-      return `
-      <tr>
-        <td>${row.id}</td>
-        <td>${templateName}</td>
-        <td>${row.content_type === "carousel" ? "Karussell" : "Post"}</td>
-        <td>
-          <button class="text-view-btn ghost" data-kind="Post Input" data-value="${encodeURIComponent(
-            row.post_input ?? ""
-          )}" title="Text komplett anzeigen">${shortText(row.post_input)}</button>
-        </td>
-        <td>
-          <button class="text-view-btn ghost" data-kind="Units" data-value="${encodeURIComponent(
-            JSON.stringify(units, null, 2)
-          )}" title="Units anzeigen">${shortText(unitNames || shortJson(units))}</button>
-        </td>
-        <td>
-          <button class="text-view-btn ghost" data-kind="Image Map" data-value="${encodeURIComponent(
-            JSON.stringify(imageMap, null, 2)
-          )}" title="Map anzeigen">${shortJson(imageMap)}</button>
-        </td>
-        <td>${getPostingStatusLabel(row)}</td>
-        <td>${new Date(row.created_at).toLocaleString("de-DE")}</td>
-      </tr>
-    `;
-    })
-    .join("");
-};
-
 const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
@@ -947,21 +850,6 @@ const deleteContentTemplate = async (templateId) => {
   }
 };
 
-const createPostingJob = async (payload) => {
-  const { error } = await supabase.from("posting_jobs").insert(payload);
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-const setEntryActiveState = async (entryId, nextActive) => {
-  const { error } = await supabase.from("image_editings").update({ active: nextActive }).eq("id", entryId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
 const updateImageEditingEntry = async (entryId, payload) => {
   const { error } = await supabase.from("image_editings").update(payload).eq("id", entryId);
   if (error) {
@@ -998,16 +886,6 @@ const loadPoolAssets = async () => {
     }
   }
   renderPoolItems();
-};
-
-const loadPostingJobs = async () => {
-  const { data, error } = await supabase.from("posting_jobs").select("*").order("created_at", { ascending: false });
-  if (error) {
-    message(postingMessage, `Posting-Liste konnte nicht geladen werden: ${error.message}`, true);
-    return;
-  }
-  renderPostingJobs(data ?? []);
-  message(postingMessage, "");
 };
 
 const createMediaAsset = async (payload) => {
@@ -1063,7 +941,6 @@ const openWorkspace = async (email) => {
   } catch (error) {
     message(poolMessage, `Medien konnten nicht geladen werden: ${error.message}`, true);
   }
-  await loadPostingJobs();
 };
 
 const checkSession = async () => {
@@ -1431,7 +1308,6 @@ const setupEvents = () => {
     await loadImageEditingTemplateOptions();
     await loadContentTemplates();
     await loadPoolAssets();
-    await loadPostingJobs();
     message(imageEditingMessage, "Status aktualisiert.");
   });
 
@@ -1644,10 +1520,9 @@ const setupEvents = () => {
         editing_instructions: editingInstructions,
         image_url: null,
         image: false,
-        active: false,
       });
 
-      message(createMessage, "Eintrag hinzugefügt (Status: Offline).", false);
+      message(createMessage, "Eintrag hinzugefügt.", false);
       createModal.close();
       await loadImageEditings();
     } catch (err) {
@@ -1675,11 +1550,6 @@ const setupEvents = () => {
 
     const editBtn = event.target.closest(".edit-btn");
     if (editBtn) {
-      if (editBtn.dataset.active === "true") {
-        message(imageEditingMessage, "Bearbeiten ist nur im Offline-Status erlaubt.", true);
-        return;
-      }
-
       const hasTemplate = editBtn.dataset.template === "true";
       const hasVariableTemplateText = editBtn.dataset.variableTemplateText === "true";
       editEntryIdInput.value = editBtn.dataset.id;
@@ -1699,11 +1569,6 @@ const setupEvents = () => {
 
     const deleteBtn = event.target.closest(".delete-btn");
     if (deleteBtn) {
-      if (deleteBtn.dataset.active === "true") {
-        message(imageEditingMessage, "Löschen ist nur im Offline-Status erlaubt.", true);
-        return;
-      }
-
       const id = Number(deleteBtn.dataset.id);
       if (!Number.isFinite(id)) {
         return;
@@ -1735,33 +1600,6 @@ const setupEvents = () => {
       return;
     }
 
-    const toggleButton = event.target.closest(".toggle-active-btn");
-    if (!toggleButton) {
-      return;
-    }
-
-    const id = Number(toggleButton.dataset.id);
-    const nextActive = toggleButton.dataset.nextActive === "true";
-
-    if (!Number.isFinite(id)) {
-      return;
-    }
-
-    toggleButton.disabled = true;
-
-    try {
-      await setEntryActiveState(id, nextActive);
-      await loadImageEditings();
-      message(
-        imageEditingMessage,
-        nextActive
-          ? "Eintrag online gestellt. Scharf wird er erst mit NanoBanana2-Prompt."
-          : "Eintrag deaktiviert (Offline)."
-      );
-    } catch (err) {
-      toggleButton.disabled = false;
-      message(imageEditingMessage, `Aktion fehlgeschlagen: ${err.message}`, true);
-    }
   });
 
   contentTemplatesBody.addEventListener("click", async (event) => {
@@ -1834,17 +1672,6 @@ const setupEvents = () => {
     }
   });
 
-  postingBody.addEventListener("click", (event) => {
-    const textViewBtn = event.target.closest(".text-view-btn");
-    if (!textViewBtn) {
-      return;
-    }
-    openTextModal(
-      decodeURIComponent(textViewBtn.dataset.kind ?? "Text"),
-      decodeURIComponent(textViewBtn.dataset.value ?? "")
-    );
-  });
-
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
   closeTextViewBtn.addEventListener("click", () => textViewModal.close());
 
@@ -1911,7 +1738,6 @@ const setupEvents = () => {
       if (!workspace.classList.contains("hidden")) {
         loadImageEditings();
         loadContentTemplates();
-        loadPostingJobs();
       }
     }, appConfig.polling.imageEditingStatusMs);
   }

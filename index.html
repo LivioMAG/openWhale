@@ -39,42 +39,37 @@
         <button class="tab" data-tab="templates">Vorlagen</button>
         <button class="tab" data-tab="image-editing">Bildbearbeitung</button>
         <button class="tab" data-tab="video-editing">Videobearbeitung</button>
-        <button class="tab" data-tab="posting">Posting</button>
       </nav>
 
       <section id="pool" class="tab-panel active card">
-        <div class="pool-layout">
-          <section class="pool-column">
-            <div class="panel-header">
-              <h3>Bibliothek</h3>
-              <div class="panel-actions">
-                <button id="upload-pool-files" class="ghost" aria-label="Medien hochladen">⤴</button>
-                <button id="open-composer-template-modal" class="plus" aria-label="Vorlage öffnen">＋</button>
-              </div>
-            </div>
-            <div class="pool-upload-controls">
-              <label>
-                Neue Gruppe
-                <div class="inline-row">
-                  <input id="pool-new-group-name" type="text" placeholder="z. B. Produkt A" />
-                  <button id="pool-create-group" type="button" class="ghost">Erstellen</button>
-                </div>
-              </label>
-              <label>
-                Nach Gruppe filtern
-                <select id="pool-filter-group">
-                  <option value="__all__">Alle Gruppen</option>
-                </select>
-              </label>
-            </div>
-            <div id="composition-area" class="composition-area hidden"></div>
-            <input id="pool-file-input" class="hidden" type="file" accept="image/*,video/*" multiple />
-            <div id="pool-list" class="pool-list">
-              <p>Noch keine Medien vorhanden.</p>
-            </div>
-            <p id="pool-message" class="message" role="status" aria-live="polite"></p>
-          </section>
+        <div class="panel-header">
+          <h3>Bibliothek</h3>
+          <div class="panel-actions">
+            <button id="upload-pool-files" class="ghost" aria-label="Medien hochladen">⤴</button>
+            <button id="open-composer-template-modal" class="plus" aria-label="Vorlage öffnen">＋</button>
+          </div>
         </div>
+        <div class="pool-upload-controls">
+          <label>
+            Neue Gruppe
+            <div class="inline-row">
+              <input id="pool-new-group-name" type="text" placeholder="z. B. Produkt A" />
+              <button id="pool-create-group" type="button" class="ghost">Erstellen</button>
+            </div>
+          </label>
+          <label>
+            Nach Gruppe filtern
+            <select id="pool-filter-group">
+              <option value="__all__">Alle Gruppen</option>
+            </select>
+          </label>
+        </div>
+        <div id="composition-area" class="composition-area hidden"></div>
+        <input id="pool-file-input" class="hidden" type="file" accept="image/*,video/*" multiple />
+        <div id="pool-list" class="pool-list">
+          <p>Noch keine Medien vorhanden.</p>
+        </div>
+        <p id="pool-message" class="message" role="status" aria-live="polite"></p>
         <p id="composition-message" class="message" role="status" aria-live="polite"></p>
       </section>
 
@@ -127,12 +122,11 @@
                 <th>Variabler Text</th>
                 <th>Template Textfelder</th>
                 <th>Bildbearbeitung</th>
-                <th>Status</th>
                 <th>Aktion</th>
               </tr>
             </thead>
             <tbody id="image-editing-body">
-              <tr><td colspan="8">Keine Einträge vorhanden.</td></tr>
+              <tr><td colspan="7">Keine Einträge vorhanden.</td></tr>
             </tbody>
           </table>
         </div>
@@ -144,34 +138,6 @@
         <p>Dieser Bereich ist vorbereitet. Die funktionale Umsetzung folgt in einem späteren Schritt.</p>
       </section>
 
-      <section id="posting" class="tab-panel card">
-        <div class="panel-header">
-          <div>
-            <h3>Posting</h3>
-            <p>Hier werden Datensätze aus "Weiter" gespeichert und der AI-Status angezeigt.</p>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Vorlage</th>
-                <th>Typ</th>
-                <th>Post Input</th>
-                <th>Units</th>
-                <th>Image-Datei ↔ Bildbearbeitung</th>
-                <th>AI Status</th>
-                <th>Erstellt</th>
-              </tr>
-            </thead>
-            <tbody id="posting-body">
-              <tr><td colspan="8">Noch keine Posting-Einträge vorhanden.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p id="posting-message" class="message" role="status" aria-live="polite"></p>
-      </section>
     </section>
   </main>
 

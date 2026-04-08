@@ -165,19 +165,39 @@ button.danger {
 .table-wrap {
   overflow-x: auto;
   margin-top: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
 }
 
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 th,
 td {
-  padding: 0.45rem;
-  border: 1px solid var(--border);
+  padding: 0.62rem 0.7rem;
+  border-bottom: 1px solid #e7ebf5;
   vertical-align: top;
   text-align: left;
+}
+
+th {
+  background: #f4f7ff;
+  color: #344054;
+  font-size: 0.84rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+tbody tr:nth-child(even) {
+  background: #fbfcff;
+}
+
+tbody tr:hover {
+  background: #f1f6ff;
 }
 
 .check-row {
@@ -342,19 +362,6 @@ dialog form {
 
 .star-btn.active {
   color: #f59e0b;
-}
-
-.pool-layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-.pool-column {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.7);
 }
 
 .pool-list,
@@ -543,12 +550,6 @@ dialog form {
 
 @media (max-width: 900px) {
   .composer-workspace {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .pool-layout {
     grid-template-columns: 1fr;
   }
 }
