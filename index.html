@@ -150,7 +150,10 @@
 
       <div class="field-head">
         <label for="editing-instructions">Bildbearbeitung (Pflicht)</label>
-        <button id="open-help-modal" class="ghost" type="button">Hilfe mit Vorlagen</button>
+        <button id="open-help-modal" class="ghost icon-text-btn" type="button">
+          <i class="fa-regular fa-lightbulb" aria-hidden="true"></i>
+          Vorlage nutzen
+        </button>
       </div>
       <textarea id="editing-instructions" rows="4" required placeholder="Wie soll das spätere Bild bearbeitet werden?"></textarea>
 
@@ -252,6 +255,16 @@
     </form>
   </dialog>
 
+  <dialog id="template-preview-modal">
+    <form class="stack" method="dialog">
+      <div class="panel-header">
+        <h3 id="template-preview-title">Template-Vorschau</h3>
+        <button id="close-template-preview" class="ghost" type="button">Schließen</button>
+      </div>
+      <img id="template-preview-image-modal" class="pool-preview-image" alt="Template-Bildvorschau" />
+    </form>
+  </dialog>
+
   <dialog id="template-modal">
     <form id="template-form" class="stack" method="dialog">
       <h3 id="template-modal-title">Neue Vorlage</h3>
@@ -280,7 +293,10 @@
           Bildbearbeitung hinzufügen (max. 10)
           <div class="inline-row">
             <select id="carousel-template-select"></select>
-            <button type="button" id="add-carousel-template" class="ghost">Hinzufügen</button>
+            <button type="button" id="add-carousel-template" class="ghost icon-text-btn">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+              Hinzufügen
+            </button>
           </div>
         </label>
         <ol id="carousel-selected-list" class="carousel-selected-list"></ol>
