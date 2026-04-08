@@ -21,6 +21,10 @@ const poolPreviewTitle = document.querySelector("#pool-preview-title");
 const poolPreviewImage = document.querySelector("#pool-preview-image");
 const poolPreviewVideo = document.querySelector("#pool-preview-video");
 const closePoolPreviewBtn = document.querySelector("#close-pool-preview");
+const templatePreviewModal = document.querySelector("#template-preview-modal");
+const templatePreviewTitle = document.querySelector("#template-preview-title");
+const templatePreviewImageModal = document.querySelector("#template-preview-image-modal");
+const closeTemplatePreviewBtn = document.querySelector("#close-template-preview");
 const openComposerTemplateModalBtn = document.querySelector("#open-composer-template-modal");
 const compositionArea = document.querySelector("#composition-area");
 const compositionMessage = document.querySelector("#composition-message");
@@ -599,7 +603,12 @@ const renderImageEditings = (rows) => {
         <td>${row.name ?? `Eintrag #${row.id}`}</td>
         <td class="${hasTemplate ? "" : "muted-cell"}">${
           hasTemplateImage
-            ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener">Bild öffnen</a>`
+            ? `<button type="button" class="template-image-open-btn ghost icon-text-btn" data-template-image-url="${encodeURIComponent(
+                row.template_img_url
+              )}" data-template-name="${encodeURIComponent(row.name ?? `Eintrag #${row.id}`)}">
+                <i class="fa-regular fa-image" aria-hidden="true"></i>
+                Template öffnen
+              </button>`
             : '<span class="placeholder empty" aria-hidden="true"></span>'
         }</td>
         <td class="${hasVariableText ? "" : "muted-cell"}">
@@ -1356,6 +1365,10 @@ const setupEvents = () => {
     poolPreviewVideo.pause();
     poolPreviewModal.close();
   });
+  closeTemplatePreviewBtn.addEventListener("click", () => {
+    templatePreviewModal.close();
+    templatePreviewImageModal.removeAttribute("src");
+  });
 
   templateImgInput.addEventListener("change", () => setPreview(templateImgInput, templatePreview));
   isTemplateInput.addEventListener("change", syncTemplateVisibility);
@@ -1590,6 +1603,16 @@ const setupEvents = () => {
   });
 
   imageEditingBody.addEventListener("click", async (event) => {
+    const templatePreviewBtn = event.target.closest(".template-image-open-btn");
+    if (templatePreviewBtn) {
+      templatePreviewImageModal.src = decodeURIComponent(templatePreviewBtn.dataset.templateImageUrl ?? "");
+      templatePreviewTitle.textContent = `Template-Vorschau: ${decodeURIComponent(
+        templatePreviewBtn.dataset.templateName ?? "Unbenannt"
+      )}`;
+      templatePreviewModal.showModal();
+      return;
+    }
+
     const textViewBtn = event.target.closest(".text-view-btn");
     if (textViewBtn) {
       openTextModal(
