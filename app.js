@@ -263,7 +263,7 @@ const buildComposerSlotsMarkup = (slots, assignments = {}) =>
       const assignedItem = assigned ? poolItems.find((item) => item.id === assigned.poolId) : null;
       const hasAssignedItem = Boolean(assignedItem);
       return `
-      <div class="drop-slot" data-slot-key="${slot.slotKey}">
+      <div class="drop-slot ${hasAssignedItem ? "has-image" : ""}" data-slot-key="${slot.slotKey}">
         <div class="slot-label">${index + 1}</div>
         <div class="slot-preview" data-slot-preview="${slot.slotKey}">
           ${
@@ -344,6 +344,8 @@ const handleAssignment = (slotKey, poolId) => {
   }
   const slotMeta = compositionArea.querySelector(`[data-slot-meta="${slotKey}"]`);
   slotMeta?.classList.add("hidden");
+  const slotContainer = compositionArea.querySelector(`.drop-slot[data-slot-key="${slotKey}"]`);
+  slotContainer?.classList.add("has-image");
 
   preview.innerHTML =
     poolItem.mediaType === "video"

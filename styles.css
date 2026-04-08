@@ -353,6 +353,10 @@ dialog form {
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-height: 3.8rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
 }
 
 .text-popup-content {
@@ -581,7 +585,7 @@ dialog form {
 
 .composer-workspace {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(260px, 320px);
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   gap: 0.6rem;
   align-items: start;
 }
@@ -621,6 +625,15 @@ dialog form {
   justify-items: center;
 }
 
+.drop-slot.has-image {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  width: 88px;
+  min-width: 88px;
+  height: auto;
+}
+
 .drop-slot.drag-over {
   border-color: var(--primary);
   background: #edf5ff;
@@ -639,6 +652,12 @@ dialog form {
   overflow: hidden;
   background: #f8f9ff;
   padding: 0;
+}
+
+.drop-slot.has-image .slot-preview {
+  border: 0;
+  background: transparent;
+  height: 70px;
 }
 
 .slot-preview img,
@@ -675,12 +694,13 @@ dialog form {
   margin: 0;
 }
 
+.drop-slot.has-image .slot-info-btn {
+  display: none;
+}
+
 .composer-images-box {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
-  padding: 0.55rem;
-  min-height: 160px;
+  min-height: 0;
+  width: 100%;
 }
 
 .composer-images-box h4 {
