@@ -64,6 +64,13 @@ const textViewModal = document.querySelector("#text-view-modal");
 const textViewTitle = document.querySelector("#text-view-title");
 const textViewContent = document.querySelector("#text-view-content");
 const closeTextViewBtn = document.querySelector("#close-text-view");
+const previewCreateModal = document.querySelector("#preview-create-modal");
+const previewCreateForm = document.querySelector("#preview-create-form");
+const previewCreateTemplateName = document.querySelector("#preview-create-template-name");
+const previewCreateEntryIdInput = document.querySelector("#preview-create-entry-id");
+const previewCreateFileInput = document.querySelector("#preview-create-file");
+const previewCreateCancelBtn = document.querySelector("#preview-create-cancel");
+const previewCreateMessage = document.querySelector("#preview-create-message");
 const openTemplateModalBtn = document.querySelector("#open-template-modal");
 const contentTemplatesBody = document.querySelector("#content-templates-body");
 const contentTemplatesMessage = document.querySelector("#content-templates-message");
@@ -99,6 +106,8 @@ let poolGroupNames = {};
 let activeComposer = null;
 let activePoolFilterGroup = "__all__";
 let editingContentTemplateId = null;
+let latestPreviewByImageEditing = new Map();
+let pendingPreviewIds = new Set();
 
 const resolveBucketName = (primaryKey, fallbackKey) => {
   const primary = appConfig?.storage?.[primaryKey];
@@ -566,7 +575,7 @@ const loadImageEditingTemplates = async () => {
 
 const renderImageEditings = (rows) => {
   if (!rows.length) {
-    imageEditingBody.innerHTML = `<tr><td colspan="5">Keine Einträge vorhanden.</td></tr>`;
+    imageEditingBody.innerHTML = `<tr><td colspan="6">Keine Einträge vorhanden.</td></tr>`;
     return;
   }
 
@@ -576,12 +585,21 @@ const renderImageEditings = (rows) => {
       const hasTemplateImage = hasTemplate && Boolean(row.template_img_url);
       const hasVariableText = hasTemplate && Boolean(row.variable_template_text);
       const hasTemplateInfo = hasVariableText && Boolean((row.template_info ?? "").trim());
+      const latestPreview = latestPreviewByImageEditing.get(row.id);
+      const previewImageUrl = latestPreview?.result_image_url ?? row.image_url ?? null;
       return `
-      <tr>
+      <tr class="image-editing-row">
+        <td class="col-preview">
+          ${
+            previewImageUrl
+              ? `<img class="template-image-thumb" src="${previewImageUrl}" alt="Vorschau ${row.name ?? row.id}" loading="lazy" />`
+              : '<span class="placeholder empty" aria-hidden="true"></span>'
+          }
+        </td>
         <td>${row.name ?? `Eintrag #${row.id}`}</td>
         <td class="${hasTemplate ? "" : "muted-cell"}">${
           hasTemplateImage
-            ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener"><img class="template-image-thumb" src="${row.template_img_url}" alt="Template ${row.name ?? row.id}" loading="lazy" /></a>`
+            ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener">Bild öffnen</a>`
             : '<span class="placeholder empty" aria-hidden="true"></span>'
         }</td>
         <td class="${hasVariableText ? "" : "muted-cell"}">
@@ -608,15 +626,15 @@ const renderImageEditings = (rows) => {
           )}" data-template="${Boolean(row.template)}" data-variable-template-text="${Boolean(
             row.variable_template_text
           )}" title="Bearbeiten">
-            ✎
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
           </button>
           <button class="icon-btn delete-btn danger" data-id="${row.id}" title="Löschen">
-            🗑
+            <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
-          <button class="icon-btn prompt-btn ghost" data-id="${row.id}" data-prompt="${encodeURIComponent(
-            row.nano2_prompt ?? row.banana2_prompt ?? ""
-          )}" title="Prompt anzeigen">
-            ⌘
+          <button class="action-btn preview-generate-btn" data-id="${row.id}" data-name="${encodeURIComponent(
+            row.name ?? `Eintrag #${row.id}`
+          )}" title="Vorschau erzeugen">
+            <i class="fa-regular fa-image" aria-hidden="true"></i> Vorschau erzeugen
           </button>
         </td>
       </tr>
@@ -776,7 +794,35 @@ const loadContentTemplates = async () => {
   message(contentTemplatesMessage, "");
 };
 
+const loadLatestImageEditingPreviews = async () => {
+  const { data, error } = await supabase
+    .from("image_editing_previews")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  latestPreviewByImageEditing = new Map();
+  pendingPreviewIds = new Set();
+  for (const row of data ?? []) {
+    if (!latestPreviewByImageEditing.has(row.image_editing_id)) {
+      latestPreviewByImageEditing.set(row.image_editing_id, row);
+    }
+    if (!row.result_image_url) {
+      pendingPreviewIds.add(row.id);
+    }
+  }
+};
+
 const loadImageEditings = async () => {
+  try {
+    await loadLatestImageEditingPreviews();
+  } catch (err) {
+    message(imageEditingMessage, `Vorschau-Status konnte nicht geladen werden: ${err.message}`, true);
+  }
+
   const { data, error } = await supabase
     .from("image_editings")
     .select("*")
@@ -789,6 +835,16 @@ const loadImageEditings = async () => {
 
   renderImageEditings(data ?? []);
   message(imageEditingMessage, "");
+};
+
+const createImageEditingPreview = async ({ imageEditingId, sourceImageUrl }) => {
+  const { error } = await supabase.from("image_editing_previews").insert({
+    image_editing_id: imageEditingId,
+    source_image_url: sourceImageUrl,
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
 };
 
 const uploadImage = async (file, bucketName) => {
@@ -1543,14 +1599,6 @@ const setupEvents = () => {
       return;
     }
 
-    const promptBtn = event.target.closest(".prompt-btn");
-    if (promptBtn) {
-      const entryId = promptBtn.dataset.id;
-      const prompt = decodeURIComponent(promptBtn.dataset.prompt ?? "");
-      openTextModal("Prompt", `ID: ${entryId}\nSupervisor-ID: ${entryId}\n\n${prompt || "Kein Prompt vorhanden."}`);
-      return;
-    }
-
     const editBtn = event.target.closest(".edit-btn");
     if (editBtn) {
       const hasTemplate = editBtn.dataset.template === "true";
@@ -1603,6 +1651,44 @@ const setupEvents = () => {
       return;
     }
 
+    const previewGenerateBtn = event.target.closest(".preview-generate-btn");
+    if (previewGenerateBtn) {
+      previewCreateForm.reset();
+      previewCreateEntryIdInput.value = previewGenerateBtn.dataset.id ?? "";
+      previewCreateTemplateName.textContent = decodeURIComponent(previewGenerateBtn.dataset.name ?? "");
+      message(previewCreateMessage, "");
+      previewCreateModal.showModal();
+      return;
+    }
+
+  });
+
+  previewCreateCancelBtn.addEventListener("click", () => previewCreateModal.close());
+
+  previewCreateForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const imageEditingId = Number(previewCreateEntryIdInput.value);
+    const [imageFile] = previewCreateFileInput.files || [];
+
+    if (!Number.isFinite(imageEditingId)) {
+      message(previewCreateMessage, "Ungültige Bildbearbeitung gewählt.", true);
+      return;
+    }
+    if (!imageFile) {
+      message(previewCreateMessage, "Bitte zuerst ein Bild auswählen.", true);
+      return;
+    }
+
+    try {
+      message(previewCreateMessage, "Bild wird hochgeladen …");
+      const sourceImageUrl = await uploadImage(imageFile, appConfig.storage.imageBucket);
+      await createImageEditingPreview({ imageEditingId, sourceImageUrl });
+      previewCreateModal.close();
+      await loadImageEditings();
+      message(imageEditingMessage, "Vorschauauftrag erstellt. Ergebnis wird automatisch alle 20 Sekunden geprüft.");
+    } catch (err) {
+      message(previewCreateMessage, `Vorschau konnte nicht erstellt werden: ${err.message}`, true);
+    }
   });
 
   contentTemplatesBody.addEventListener("click", async (event) => {
@@ -1735,6 +1821,15 @@ const setupEvents = () => {
       message(editMessage, err.message, true);
     }
   });
+
+  const previewPollingMs = 20000;
+  if (previewPollingMs > 0) {
+    setInterval(() => {
+      if (!workspace.classList.contains("hidden") && pendingPreviewIds.size > 0) {
+        loadImageEditings();
+      }
+    }, previewPollingMs);
+  }
 
   if (appConfig.polling.imageEditingStatusMs > 0) {
     setInterval(() => {

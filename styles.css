@@ -314,6 +314,15 @@ dialog form {
   margin-right: 0.25rem;
 }
 
+.action-btn {
+  height: 2rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
 .text-view-btn {
   max-width: 280px;
   text-align: left;
@@ -414,6 +423,35 @@ dialog form {
 .pool-assets-table td {
   white-space: nowrap;
   vertical-align: middle;
+}
+
+.image-editings-table th,
+.image-editings-table td {
+  white-space: nowrap;
+}
+
+.image-editings-table th:nth-child(1),
+.image-editings-table td:nth-child(1),
+.image-editings-table th:nth-child(2),
+.image-editings-table td:nth-child(2),
+.image-editings-table th:nth-child(3),
+.image-editings-table td:nth-child(3) {
+  width: 140px;
+  max-width: 140px;
+}
+
+.image-editings-table th:nth-child(4),
+.image-editings-table td:nth-child(4),
+.image-editings-table th:nth-child(5),
+.image-editings-table td:nth-child(5) {
+  width: 360px;
+  max-width: 360px;
+}
+
+.image-editings-table th:nth-child(6),
+.image-editings-table td:nth-child(6) {
+  width: 260px;
+  min-width: 260px;
 }
 
 .pool-thumb {
