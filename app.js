@@ -640,10 +640,10 @@ const renderImageEditings = (rows) => {
           <button class="icon-btn delete-btn danger" data-id="${row.id}" title="Löschen">
             <i class="fa-solid fa-trash" aria-hidden="true"></i>
           </button>
-          <button class="action-btn preview-generate-btn" data-id="${row.id}" data-name="${encodeURIComponent(
+          <button class="icon-btn preview-generate-btn" data-id="${row.id}" data-name="${encodeURIComponent(
             row.name ?? `Eintrag #${row.id}`
-          )}" title="Vorschau erzeugen">
-            <i class="fa-regular fa-image" aria-hidden="true"></i> Vorschau erzeugen
+          )}" title="Vorschau erzeugen" aria-label="Vorschau erzeugen">
+            <i class="fa-regular fa-image" aria-hidden="true"></i>
           </button>
         </td>
       </tr>
