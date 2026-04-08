@@ -573,20 +573,28 @@ const renderImageEditings = (rows) => {
 
   imageEditingBody.innerHTML = rows
     .map((row) => {
+      const hasTemplate = Boolean(row.template);
+      const hasTemplateImage = hasTemplate && Boolean(row.template_img_url);
+      const hasVariableText = hasTemplate && Boolean(row.variable_template_text);
+      const hasTemplateInfo = hasVariableText && Boolean((row.template_info ?? "").trim());
       return `
       <tr>
         <td>${row.name ?? `Eintrag #${row.id}`}</td>
-        <td>${formatBool(row.template)}</td>
-        <td>${
-          row.template_img_url
-            ? `<a href="${row.template_img_url}" target="_blank" rel="noopener">Template öffnen</a>`
-            : "-"
+        <td class="${hasTemplate ? "" : "muted-cell"}">${formatBool(row.template)}</td>
+        <td class="${hasTemplate ? "" : "muted-cell"}">${
+          hasTemplateImage
+            ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener"><img class="template-image-thumb" src="${row.template_img_url}" alt="Template ${row.name ?? row.id}" loading="lazy" /></a>`
+            : '<span class="placeholder">—</span>'
         }</td>
-        <td>${formatBool(row.variable_template_text)}</td>
-        <td>
-          <button class="text-view-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
-            row.template_info ?? ""
-          )}" title="Text komplett anzeigen">${shortText(row.template_info)}</button>
+        <td class="${hasTemplate ? "" : "muted-cell"}">${hasTemplate ? formatBool(row.variable_template_text) : "—"}</td>
+        <td class="${hasVariableText ? "" : "muted-cell"}">
+          ${
+            hasTemplateInfo
+              ? `<button class="text-view-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
+                  row.template_info ?? ""
+                )}" title="Text komplett anzeigen">${shortText(row.template_info)}</button>`
+              : '<span class="placeholder">—</span>'
+          }
         </td>
         <td>
           <button class="text-view-btn ghost" data-kind="Bildbearbeitung" data-value="${encodeURIComponent(
@@ -692,7 +700,7 @@ const populateTemplateSelects = () => {
 
 const renderContentTemplates = (rows) => {
   if (!rows.length) {
-    contentTemplatesBody.innerHTML = `<tr><td colspan="7">Keine Vorlagen vorhanden.</td></tr>`;
+    contentTemplatesBody.innerHTML = `<tr><td colspan="5">Keine Vorlagen vorhanden.</td></tr>`;
     return;
   }
 
@@ -711,8 +719,6 @@ const renderContentTemplates = (rows) => {
         <td>${row.template_type === "post" ? "Post" : "Karussell"}</td>
         <td>${imageEditingText || "-"}</td>
         <td>${shortText(row.caption_requirements)}</td>
-        <td>${shortText(row.hashtag_requirements)}</td>
-        <td>${shortText(row.special_requirements ?? "-")}</td>
         <td>
           <button class="icon-btn edit-template-btn" data-id="${row.id}" data-name="${encodeURIComponent(
             row.name ?? ""
