@@ -387,6 +387,7 @@ create table if not exists public.posting_jobs (
   content_template_id bigint references public.content_templates(id),
   content_template_name text not null,
   content_type text not null check (content_type in ('post', 'carousel')),
+  posted_by_user_id uuid references auth.users(id),
   post_input text not null,
   units jsonb not null default '[]'::jsonb,
   image_editing_image_map jsonb not null default '[]'::jsonb,
@@ -398,6 +399,7 @@ create table if not exists public.posting_jobs (
 
 alter table public.posting_jobs add column if not exists content_template_name text;
 alter table public.posting_jobs add column if not exists content_type text;
+alter table public.posting_jobs add column if not exists posted_by_user_id uuid references auth.users(id);
 alter table public.posting_jobs add column if not exists post_input text;
 alter table public.posting_jobs add column if not exists units jsonb not null default '[]'::jsonb;
 alter table public.posting_jobs add column if not exists image_editing_image_map jsonb not null default '[]'::jsonb;

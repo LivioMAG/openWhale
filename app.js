@@ -28,6 +28,8 @@ const closeTemplatePreviewBtn = document.querySelector("#close-template-preview"
 const openComposerTemplateModalBtn = document.querySelector("#open-composer-template-modal");
 const compositionArea = document.querySelector("#composition-area");
 const compositionMessage = document.querySelector("#composition-message");
+const postingJobsBody = document.querySelector("#posting-jobs-body");
+const postingMessage = document.querySelector("#posting-message");
 
 const imageEditingBody = document.querySelector("#image-editing-body");
 const imageEditingMessage = document.querySelector("#image-editing-message");
@@ -112,6 +114,7 @@ let activePoolFilterGroup = "__all__";
 let editingContentTemplateId = null;
 let latestPreviewByImageEditing = new Map();
 let pendingPreviewIds = new Set();
+let currentUserId = null;
 
 const resolveBucketName = (primaryKey, fallbackKey) => {
   const primary = appConfig?.storage?.[primaryKey];
@@ -256,28 +259,22 @@ const buildComposerMarkup = () => {
 const buildComposerSlotsMarkup = (slots, assignments = {}) =>
   slots
     .map((slot, index) => {
-      const templateLabel = getTemplateLabelById(slot.templateRef);
       const assigned = assignments[slot.slotKey];
       const assignedItem = assigned ? poolItems.find((item) => item.id === assigned.poolId) : null;
       const hasAssignedItem = Boolean(assignedItem);
       return `
-      <div class="drop-slot" data-slot-key="${slot.slotKey}" draggable="true" data-slot-index="${index}">
-        <div class="slot-head">
-          <div class="slot-meta ${hasAssignedItem ? "hidden" : ""}" data-slot-meta="${slot.slotKey}">
-            <strong>${slot.label}</strong>
-            <span class="slot-template-label">${templateLabel}</span>
-          </div>
-          <button type="button" class="icon-btn ghost slot-info-btn" data-template-ref="${slot.templateRef}" title="Bildbearbeitung anzeigen">ⓘ</button>
-        </div>
+      <div class="drop-slot" data-slot-key="${slot.slotKey}">
+        <div class="slot-label">${index + 1}</div>
         <div class="slot-preview" data-slot-preview="${slot.slotKey}">
           ${
             hasAssignedItem
               ? assignedItem.mediaType === "video"
                 ? `<video src="${assignedItem.url}" controls muted preload="metadata"></video>`
                 : `<img src="${assignedItem.url}" alt="${assignedItem.name}" loading="lazy" />`
-              : "Kein Bild zugewiesen."
+              : ""
           }
         </div>
+        <button type="button" class="icon-btn ghost slot-info-btn" data-template-ref="${slot.templateRef}" title="Bildbearbeitung anzeigen">ⓘ</button>
       </div>
     `;
     })
@@ -322,34 +319,10 @@ const renderComposerSlots = (templateId) => {
         Infos zum Post
         <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
       </label>
-      <div class="${slotTrackClass}">${slotMarkup}</div>
-    </div>
-  `;
-};
-
-const reorderComposerSlots = (fromIndex, toIndex) => {
-  if (!activeComposer || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
-    return;
-  }
-  if (fromIndex >= activeComposer.slots.length || toIndex >= activeComposer.slots.length) {
-    return;
-  }
-  const [moved] = activeComposer.slots.splice(fromIndex, 1);
-  activeComposer.slots.splice(toIndex, 0, moved);
-
-  const slotsWrap = compositionArea.querySelector("#composer-slots");
-  if (!slotsWrap) {
-    return;
-  }
-  const slotMarkup = buildComposerSlotsMarkup(activeComposer.slots, activeComposer.assignments);
-  const slotTrackClass = `composer-slots-track ${activeComposer.type === "carousel" ? "is-carousel" : ""}`.trim();
-  slotsWrap.innerHTML = `
-    <div class="composer-workspace">
-      <label class="composer-post-info">
-        Infos zum Post
-        <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post">${activeComposer.postInfo ?? ""}</textarea>
-      </label>
-      <div class="${slotTrackClass}">${slotMarkup}</div>
+      <div class="composer-images-box">
+        <h4>Bilder</h4>
+        <div class="${slotTrackClass}">${slotMarkup}</div>
+      </div>
     </div>
   `;
 };
@@ -475,23 +448,21 @@ const validateComposer = async () => {
     media_items: usedSlots,
   };
 
-  const prettySummary = [
-    `Vorlage: ${summaryPayload.template.name} (#${summaryPayload.template.id})`,
-    `Typ: ${summaryPayload.is_carousel ? "Karussell" : "Post"}`,
-    `Kurzinfo: ${summaryPayload.post_info}`,
-    `Caption: ${summaryPayload.caption_requirements || "-"}`,
-    `Hashtags: ${summaryPayload.hashtag_requirements || "-"}`,
-    `Spezielle Hinweise: ${summaryPayload.special_requirements || "-"}`,
-    "",
-    "JSONB-Vorschau:",
-    JSON.stringify(summaryPayload, null, 2),
-  ].join("\n");
+  const now = new Date();
+  const titleDate = now.toLocaleDateString("de-CH");
+  const title = `${activeComposer.templateName} - ${titleDate}`;
 
   try {
-    openTextModal("Zusammenfassung", prettySummary);
-    message(compositionMessage, "Zusammenfassung erstellt.");
+    await createPostingJob({
+      title,
+      payload: summaryPayload,
+      userId: currentUserId,
+    });
+    await loadPostingJobs();
+    message(compositionMessage, "Posting-Job wurde gespeichert.");
+    setTab("posting");
   } catch (error) {
-    message(compositionMessage, `Zusammenfassung konnte nicht erstellt werden: ${error.message}`, true);
+    message(compositionMessage, `Posting-Job konnte nicht gespeichert werden: ${error.message}`, true);
   }
 };
 
@@ -920,6 +891,55 @@ const deleteContentTemplate = async (templateId) => {
   }
 };
 
+const createPostingJob = async ({ title, payload, userId }) => {
+  const { error } = await supabase.from("posting_jobs").insert({
+    content_template_name: title,
+    payload,
+    "isDone": false,
+    posted_by_user_id: userId,
+    post_input: payload.post_info ?? "",
+    content_type: payload.content_type ?? "post",
+    units: payload.media_items ?? [],
+    image_editing_image_map: payload.media_items ?? [],
+  });
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const renderPostingJobs = (rows) => {
+  if (!rows.length) {
+    postingJobsBody.innerHTML = `<tr><td colspan="4">Keine Postings vorhanden.</td></tr>`;
+    return;
+  }
+
+  postingJobsBody.innerHTML = rows
+    .map((row) => {
+      const payloadJson = JSON.stringify(row.payload ?? {}, null, 2);
+      return `
+      <tr>
+        <td>${row.content_template_name ?? "-"}</td>
+        <td>${row.posted_by_user_id ?? "-"}</td>
+        <td>${row.isDone ? "Done" : "Offen"}</td>
+        <td>
+          <button type="button" class="ghost posting-payload-btn" data-payload="${encodeURIComponent(payloadJson)}">Payload</button>
+        </td>
+      </tr>
+    `;
+    })
+    .join("");
+};
+
+const loadPostingJobs = async () => {
+  const { data, error } = await supabase.from("posting_jobs").select("*").order("created_at", { ascending: false });
+  if (error) {
+    message(postingMessage, `Posting-Jobs konnten nicht geladen werden: ${error.message}`, true);
+    return;
+  }
+  renderPostingJobs(data ?? []);
+  message(postingMessage, "");
+};
+
 const updateImageEditingEntry = async (entryId, payload) => {
   const { error } = await supabase.from("image_editings").update(payload).eq("id", entryId);
   if (error) {
@@ -1003,9 +1023,14 @@ const openWorkspace = async (email) => {
   loginScreen.classList.add("hidden");
   workspace.classList.remove("hidden");
   userEmail.textContent = email;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  currentUserId = user?.id ?? null;
   await loadImageEditingTemplateOptions();
   await loadContentTemplates();
   await loadImageEditings();
+  await loadPostingJobs();
   try {
     await loadPoolAssets();
   } catch (error) {
@@ -1271,19 +1296,6 @@ const setupEvents = () => {
     }
   });
 
-  compositionArea.addEventListener("dragstart", (event) => {
-    const slot = event.target.closest(".drop-slot");
-    if (!slot) {
-      return;
-    }
-    const slotIndex = Number(slot.dataset.slotIndex);
-    if (!Number.isFinite(slotIndex)) {
-      return;
-    }
-    event.dataTransfer?.setData("text/slot-index", String(slotIndex));
-    event.dataTransfer.effectAllowed = "move";
-  });
-
   document.addEventListener("dragstart", (event) => {
     const dragMedia = event.target.closest("[data-drag-pool-id]");
     if (!dragMedia) {
@@ -1320,14 +1332,6 @@ const setupEvents = () => {
 
     event.preventDefault();
     slot.classList.remove("drag-over");
-    const draggedSlot = Number(event.dataTransfer?.getData("text/slot-index"));
-    const dropSlotIndex = Number(slot.dataset.slotIndex);
-    if (Number.isFinite(draggedSlot) && Number.isFinite(dropSlotIndex) && activeComposer?.type === "carousel") {
-      reorderComposerSlots(draggedSlot, dropSlotIndex);
-      message(compositionMessage, "Slots wurden neu sortiert.");
-      return;
-    }
-
     const poolId = event.dataTransfer?.getData("text/plain");
     const slotKey = slot.dataset.slotKey;
     if (!poolId || !slotKey) {
@@ -1784,6 +1788,14 @@ const setupEvents = () => {
     } catch (err) {
       message(contentTemplatesMessage, `Löschen fehlgeschlagen: ${err.message}`, true);
     }
+  });
+
+  postingJobsBody.addEventListener("click", (event) => {
+    const payloadBtn = event.target.closest(".posting-payload-btn");
+    if (!payloadBtn) {
+      return;
+    }
+    openTextModal("Posting Payload", decodeURIComponent(payloadBtn.dataset.payload ?? "{}"));
   });
 
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
