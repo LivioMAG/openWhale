@@ -567,7 +567,7 @@ const loadImageEditingTemplates = async () => {
 
 const renderImageEditings = (rows) => {
   if (!rows.length) {
-    imageEditingBody.innerHTML = `<tr><td colspan="7">Keine Einträge vorhanden.</td></tr>`;
+    imageEditingBody.innerHTML = `<tr><td colspan="6">Keine Einträge vorhanden.</td></tr>`;
     return;
   }
 
@@ -584,16 +584,15 @@ const renderImageEditings = (rows) => {
         <td class="${hasTemplate ? "" : "muted-cell"}">${
           hasTemplateImage
             ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener"><img class="template-image-thumb" src="${row.template_img_url}" alt="Template ${row.name ?? row.id}" loading="lazy" /></a>`
-            : '<span class="placeholder">—</span>'
+            : '<span class="placeholder empty" aria-hidden="true"></span>'
         }</td>
-        <td class="${hasTemplate ? "" : "muted-cell"}">${hasTemplate ? formatBool(row.variable_template_text) : "—"}</td>
         <td class="${hasVariableText ? "" : "muted-cell"}">
           ${
             hasTemplateInfo
               ? `<button class="text-view-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
                   row.template_info ?? ""
                 )}" title="Text komplett anzeigen">${shortText(row.template_info)}</button>`
-              : '<span class="placeholder">—</span>'
+              : '<span class="placeholder empty" aria-hidden="true"></span>'
           }
         </td>
         <td>
