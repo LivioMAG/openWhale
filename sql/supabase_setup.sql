@@ -106,6 +106,58 @@ create policy "auth users can delete image_editings"
   to authenticated
   using (true);
 
+-- Tabelle für Vorschau-Jobs zur Bildbearbeitung
+create table if not exists public.image_editing_previews (
+  id bigint generated always as identity primary key,
+  image_editing_id bigint not null references public.image_editings(id) on delete cascade,
+  source_image_url text not null,
+  result_image_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint image_editing_previews_source_required
+    check (coalesce(length(trim(source_image_url)), 0) > 0)
+);
+
+create or replace function public.set_image_editing_previews_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_image_editing_previews_updated_at on public.image_editing_previews;
+create trigger trg_image_editing_previews_updated_at
+before update on public.image_editing_previews
+for each row
+execute function public.set_image_editing_previews_updated_at();
+
+grant all on table public.image_editing_previews to authenticated;
+grant usage, select on sequence public.image_editing_previews_id_seq to authenticated;
+alter table public.image_editing_previews enable row level security;
+
+drop policy if exists "auth users can read image_editing_previews" on public.image_editing_previews;
+create policy "auth users can read image_editing_previews"
+  on public.image_editing_previews
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "auth users can insert image_editing_previews" on public.image_editing_previews;
+create policy "auth users can insert image_editing_previews"
+  on public.image_editing_previews
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "auth users can update image_editing_previews" on public.image_editing_previews;
+create policy "auth users can update image_editing_previews"
+  on public.image_editing_previews
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
 -- Storage Buckets für Uploads
 insert into storage.buckets (id, name, public)
 values ('template-images', 'template-images', true)
