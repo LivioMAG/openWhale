@@ -408,12 +408,18 @@ alter table public.posting_jobs add column if not exists post_input text;
 alter table public.posting_jobs add column if not exists units jsonb not null default '[]'::jsonb;
 alter table public.posting_jobs add column if not exists image_editing_image_map jsonb not null default '[]'::jsonb;
 alter table public.posting_jobs add column if not exists payload jsonb not null default '{}'::jsonb;
+alter table public.posting_jobs add column if not exists output jsonb not null default '{}'::jsonb;
+alter table public.posting_jobs add column if not exists posting_name text;
 alter table public.posting_jobs add column if not exists "isDone" boolean not null default false;
 alter table public.posting_jobs add column if not exists updated_at timestamptz not null default now();
 
 update public.posting_jobs
 set content_template_name = coalesce(nullif(trim(content_template_name), ''), 'Unbenannte Vorlage')
 where content_template_name is null or trim(content_template_name) = '';
+
+update public.posting_jobs
+set posting_name = coalesce(nullif(trim(posting_name), ''), content_template_name, 'Auftrag')
+where posting_name is null or trim(posting_name) = '';
 
 update public.posting_jobs
 set content_type = coalesce(nullif(trim(content_type), ''), 'post')
@@ -426,6 +432,7 @@ where post_input is null;
 alter table public.posting_jobs
   alter column content_template_name set not null,
   alter column content_type set not null,
+  alter column posting_name set not null,
   alter column post_input set not null;
 
 alter table public.posting_jobs

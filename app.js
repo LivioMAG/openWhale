@@ -417,7 +417,6 @@ const validateComposer = async () => {
     return;
   }
 
-  const selectedTemplate = contentTemplateOptions.find((item) => item.id === activeComposer.templateId);
   const usedSlots = activeComposer.slots
     .map((slot, index) => ({ slot, index, assignment: activeComposer.assignments[slot.slotKey] }))
     .filter((entry) => Boolean(entry.assignment?.poolId))
@@ -437,12 +436,6 @@ const validateComposer = async () => {
     });
 
   const summaryPayload = {
-    content_type: activeComposer.type,
-    is_carousel: activeComposer.type === "carousel",
-    template: {
-      id: selectedTemplate?.id ?? activeComposer.templateId,
-      name: selectedTemplate?.name ?? activeComposer.templateName,
-    },
     post_info: activeComposer.postInfo.trim(),
     caption_requirements: activeComposer.captionRequirements,
     hashtag_requirements: activeComposer.hashtagRequirements,
@@ -451,8 +444,9 @@ const validateComposer = async () => {
   };
 
   const now = new Date();
-  const titleDate = now.toLocaleDateString("de-CH");
-  const title = `${activeComposer.templateName} - ${titleDate}`;
+  const postingDate = now.toLocaleDateString("de-CH");
+  const postingTime = now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", hour12: false });
+  const title = `Auftrag ${postingDate} ${postingTime}`;
 
   try {
     await createPostingJob({
@@ -894,37 +888,90 @@ const deleteContentTemplate = async (templateId) => {
 };
 
 const createPostingJob = async ({ title, payload, userId }) => {
+  const defaultOutput = {
+    caption: "",
+    hashtags: [],
+    images: (payload.media_items ?? []).map((item, index) => ({
+      url: item.file_url ?? "",
+      order: index + 1,
+    })),
+    link: "",
+    audio: "",
+  };
+
   const { error } = await supabase.from("posting_jobs").insert({
-    content_template_name: title,
+    posting_name: title,
     payload,
+    output: defaultOutput,
     "isDone": false,
     posted_by_user_id: userId,
-    post_input: payload.post_info ?? "",
-    content_type: payload.content_type ?? "post",
-    units: payload.media_items ?? [],
-    image_editing_image_map: payload.media_items ?? [],
+    post_input: "",
+    content_type: "post",
+    content_template_name: "",
   });
   if (error) {
     throw new Error(error.message);
   }
 };
 
+const updatePostingJobName = async (jobId, postingName) => {
+  const safeName = (postingName ?? "").trim();
+  if (!safeName) {
+    throw new Error("Der Posting-Name darf nicht leer sein.");
+  }
+
+  const { error } = await supabase.from("posting_jobs").update({ posting_name: safeName }).eq("id", jobId);
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+const renderPostingOutput = (row) => {
+  const output = row.output ?? {};
+  const caption = typeof output.caption === "string" && output.caption.trim() ? output.caption : "Noch keine Caption";
+  const images = Array.isArray(output.images) ? output.images : [];
+  const imageList = images.length
+    ? images
+        .map((image) => {
+          const link = image?.url ?? "";
+          const order = image?.order ?? "-";
+          return link
+            ? `<li>#${order}: <a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a></li>`
+            : `<li>#${order}: -</li>`;
+        })
+        .join("")
+    : "<li>Noch keine Bilder</li>";
+  const statusLabel = row.isDone ? "Fertig" : "In Arbeit";
+
+  return `
+    <div class="posting-output">
+      <p><strong>Status:</strong> ${statusLabel}</p>
+      <p><strong>Caption:</strong> ${caption}</p>
+      <p><strong>Bilder:</strong></p>
+      <ul>${imageList}</ul>
+    </div>
+  `;
+};
+
 const renderPostingJobs = (rows) => {
   if (!rows.length) {
-    postingJobsBody.innerHTML = `<tr><td colspan="4">Keine Postings vorhanden.</td></tr>`;
+    postingJobsBody.innerHTML = `<tr><td colspan="2">Keine Postings vorhanden.</td></tr>`;
     return;
   }
 
   postingJobsBody.innerHTML = rows
     .map((row) => {
-      const payloadJson = JSON.stringify(row.payload ?? {}, null, 2);
+      const postingName = row.posting_name || row.content_template_name || "-";
       return `
       <tr>
-        <td>${row.content_template_name ?? "-"}</td>
-        <td>${row.posted_by_user_id ?? "-"}</td>
-        <td>${row.isDone ? "Done" : "Offen"}</td>
         <td>
-          <button type="button" class="ghost posting-payload-btn" data-payload="${encodeURIComponent(payloadJson)}">Payload</button>
+          <div class="posting-name-cell">
+            <input type="text" value="${postingName}" data-posting-name-input="${row.id}" maxlength="120" />
+            <button type="button" class="ghost posting-name-save-btn" data-posting-name-save="${row.id}">Speichern</button>
+          </div>
+        </td>
+        <td>
+          ${renderPostingOutput(row)}
         </td>
       </tr>
     `;
@@ -1793,11 +1840,25 @@ const setupEvents = () => {
   });
 
   postingJobsBody.addEventListener("click", (event) => {
-    const payloadBtn = event.target.closest(".posting-payload-btn");
-    if (!payloadBtn) {
+    const saveBtn = event.target.closest(".posting-name-save-btn");
+    if (!saveBtn) {
       return;
     }
-    openTextModal("Posting Payload", decodeURIComponent(payloadBtn.dataset.payload ?? "{}"));
+
+    const jobId = Number(saveBtn.dataset.postingNameSave);
+    const input = postingJobsBody.querySelector(`[data-posting-name-input="${jobId}"]`);
+    if (!input) {
+      return;
+    }
+
+    updatePostingJobName(jobId, input.value)
+      .then(async () => {
+        await loadPostingJobs();
+        message(postingMessage, "Posting-Name wurde gespeichert.");
+      })
+      .catch((error) => {
+        message(postingMessage, `Posting-Name konnte nicht gespeichert werden: ${error.message}`, true);
+      });
   });
 
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
