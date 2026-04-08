@@ -240,6 +240,12 @@ tbody tr:hover {
   color: #98a2b3;
 }
 
+.placeholder.empty {
+  display: inline-block;
+  min-width: 1rem;
+  min-height: 1rem;
+}
+
 .message {
   min-height: 1.2rem;
   margin-top: 0.7rem;
