@@ -111,7 +111,6 @@ const message = (element, text, isError = false) => {
   element.classList.toggle("error", Boolean(isError));
 };
 
-const formatBool = (value) => (value ? "Ja" : "Nein");
 const shortText = (value) => {
   if (!value) {
     return "-";
@@ -567,7 +566,7 @@ const loadImageEditingTemplates = async () => {
 
 const renderImageEditings = (rows) => {
   if (!rows.length) {
-    imageEditingBody.innerHTML = `<tr><td colspan="6">Keine Einträge vorhanden.</td></tr>`;
+    imageEditingBody.innerHTML = `<tr><td colspan="5">Keine Einträge vorhanden.</td></tr>`;
     return;
   }
 
@@ -580,7 +579,6 @@ const renderImageEditings = (rows) => {
       return `
       <tr>
         <td>${row.name ?? `Eintrag #${row.id}`}</td>
-        <td class="${hasTemplate ? "" : "muted-cell"}">${formatBool(row.template)}</td>
         <td class="${hasTemplate ? "" : "muted-cell"}">${
           hasTemplateImage
             ? `<a class="template-image-link" href="${row.template_img_url}" target="_blank" rel="noopener"><img class="template-image-thumb" src="${row.template_img_url}" alt="Template ${row.name ?? row.id}" loading="lazy" /></a>`
