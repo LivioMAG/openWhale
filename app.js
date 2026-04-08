@@ -133,7 +133,7 @@ const shortText = (value) => {
     return value;
   }
 
-  return `${value.slice(0, 67)}…`;
+  return `${value.slice(0, 67)}...`;
 };
 
 const getPoolGroupLabel = (groupId) => {
@@ -314,6 +314,7 @@ const renderComposerSlots = (templateId) => {
   };
 
   const slotMarkup = buildComposerSlotsMarkup(slots, activeComposer.assignments);
+  const slotTrackClass = `composer-slots-track ${activeComposer.type === "carousel" ? "is-carousel" : ""}`.trim();
 
   slotsWrap.innerHTML = `
     <div class="composer-workspace">
@@ -321,7 +322,7 @@ const renderComposerSlots = (templateId) => {
         Infos zum Post
         <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
       </label>
-      <div class="composer-slots-track">${slotMarkup}</div>
+      <div class="${slotTrackClass}">${slotMarkup}</div>
     </div>
   `;
 };
@@ -341,13 +342,14 @@ const reorderComposerSlots = (fromIndex, toIndex) => {
     return;
   }
   const slotMarkup = buildComposerSlotsMarkup(activeComposer.slots, activeComposer.assignments);
+  const slotTrackClass = `composer-slots-track ${activeComposer.type === "carousel" ? "is-carousel" : ""}`.trim();
   slotsWrap.innerHTML = `
     <div class="composer-workspace">
       <label class="composer-post-info">
         Infos zum Post
         <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post">${activeComposer.postInfo ?? ""}</textarea>
       </label>
-      <div class="composer-slots-track">${slotMarkup}</div>
+      <div class="${slotTrackClass}">${slotMarkup}</div>
     </div>
   `;
 };
@@ -614,14 +616,14 @@ const renderImageEditings = (rows) => {
         <td class="${hasVariableText ? "" : "muted-cell"}">
           ${
             hasTemplateInfo
-              ? `<button class="text-view-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
+              ? `<button class="text-view-btn image-editing-text-btn ghost" data-kind="Template Textfelder" data-value="${encodeURIComponent(
                   row.template_info ?? ""
                 )}" title="Text komplett anzeigen">${shortText(row.template_info)}</button>`
               : '<span class="placeholder empty" aria-hidden="true"></span>'
           }
         </td>
         <td>
-          <button class="text-view-btn ghost" data-kind="Bildbearbeitung" data-value="${encodeURIComponent(
+          <button class="text-view-btn image-editing-text-btn ghost" data-kind="Bildbearbeitung" data-value="${encodeURIComponent(
             row.editing_instructions ?? ""
           )}" title="Text komplett anzeigen">${shortText(row.editing_instructions)}</button>
         </td>
