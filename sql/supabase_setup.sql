@@ -69,9 +69,13 @@ alter table public.image_editings
   check (coalesce(length(trim(name)), 0) > 0);
 
 -- Behebt "permission denied for schema public"
-grant usage on schema public to anon, authenticated;
-grant all on table public.image_editings to authenticated;
-grant usage, select on sequence public.image_editings_id_seq to authenticated;
+grant usage on schema public to anon, authenticated, service_role;
+grant all on table public.image_editings to authenticated, service_role;
+grant usage, select on sequence public.image_editings_id_seq to authenticated, service_role;
+alter default privileges in schema public
+  grant all on tables to authenticated, service_role;
+alter default privileges in schema public
+  grant usage, select on sequences to authenticated, service_role;
 
 -- Row Level Security aktivieren
 alter table public.image_editings enable row level security;
@@ -132,8 +136,8 @@ before update on public.image_editing_previews
 for each row
 execute function public.set_image_editing_previews_updated_at();
 
-grant all on table public.image_editing_previews to authenticated;
-grant usage, select on sequence public.image_editing_previews_id_seq to authenticated;
+grant all on table public.image_editing_previews to authenticated, service_role;
+grant usage, select on sequence public.image_editing_previews_id_seq to authenticated, service_role;
 alter table public.image_editing_previews enable row level security;
 
 drop policy if exists "auth users can read image_editing_previews" on public.image_editing_previews;
@@ -272,8 +276,8 @@ before update on public.content_templates
 for each row
 execute function public.set_content_templates_updated_at();
 
-grant all on table public.content_templates to authenticated;
-grant usage, select on sequence public.content_templates_id_seq to authenticated;
+grant all on table public.content_templates to authenticated, service_role;
+grant usage, select on sequence public.content_templates_id_seq to authenticated, service_role;
 
 alter table public.content_templates enable row level security;
 
@@ -328,7 +332,7 @@ alter table public.media_assets
   add constraint media_assets_rating_range
   check (rating is null or rating between 1 and 3);
 
-grant all on table public.media_assets to authenticated;
+grant all on table public.media_assets to authenticated, service_role;
 alter table public.media_assets enable row level security;
 
 drop policy if exists "auth users can read media_assets" on public.media_assets;
@@ -445,8 +449,8 @@ before update on public.posting_jobs
 for each row
 execute function public.set_posting_jobs_updated_at();
 
-grant all on table public.posting_jobs to authenticated;
-grant usage, select on sequence public.posting_jobs_id_seq to authenticated;
+grant all on table public.posting_jobs to authenticated, service_role;
+grant usage, select on sequence public.posting_jobs_id_seq to authenticated, service_role;
 
 alter table public.posting_jobs enable row level security;
 
