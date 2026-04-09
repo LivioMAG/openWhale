@@ -296,6 +296,24 @@
     </form>
   </dialog>
 
+  <dialog id="composer-template-check-modal">
+    <form class="stack" method="dialog">
+      <div class="panel-header">
+        <h3>Template-Check</h3>
+        <button id="composer-template-check-close" class="ghost" type="button">Abbrechen</button>
+      </div>
+      <p>
+        Dieses Template enthält variablen Text. Bitte prüfe den Prompt und bestätige:
+        <strong>Sind alle Informationen vorhanden, die ich brauche?</strong>
+      </p>
+      <pre id="composer-template-check-prompt" class="text-popup-content"></pre>
+      <div class="modal-actions">
+        <button id="composer-template-check-cancel" value="cancel" class="ghost" type="button">Nein, zurück</button>
+        <button id="composer-template-check-confirm" value="confirm" type="button">Ja, weiter</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="template-modal">
     <form id="template-form" class="stack" method="dialog">
       <h3 id="template-modal-title">Neue Vorlage</h3>

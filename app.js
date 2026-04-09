@@ -25,6 +25,11 @@ const templatePreviewModal = document.querySelector("#template-preview-modal");
 const templatePreviewTitle = document.querySelector("#template-preview-title");
 const templatePreviewImageModal = document.querySelector("#template-preview-image-modal");
 const closeTemplatePreviewBtn = document.querySelector("#close-template-preview");
+const composerTemplateCheckModal = document.querySelector("#composer-template-check-modal");
+const composerTemplateCheckPrompt = document.querySelector("#composer-template-check-prompt");
+const composerTemplateCheckCloseBtn = document.querySelector("#composer-template-check-close");
+const composerTemplateCheckCancelBtn = document.querySelector("#composer-template-check-cancel");
+const composerTemplateCheckConfirmBtn = document.querySelector("#composer-template-check-confirm");
 const openComposerTemplateModalBtn = document.querySelector("#open-composer-template-modal");
 const compositionArea = document.querySelector("#composition-area");
 const compositionMessage = document.querySelector("#composition-message");
@@ -426,6 +431,11 @@ const validateComposer = async () => {
     return;
   }
 
+  const postInfoField = compositionArea.querySelector("#composer-post-info");
+  if (postInfoField) {
+    activeComposer.postInfo = postInfoField.value;
+  }
+
   if (!(activeComposer.postInfo ?? "").trim()) {
     message(compositionMessage, "Bitte einmalige Infos zum Post eintragen.", true);
     return;
@@ -457,6 +467,15 @@ const validateComposer = async () => {
     media_items: usedSlots,
   };
 
+  if (activeComposer.variableTemplateHints.length) {
+    const promptPreview = buildComposerPromptPreview(activeComposer, summaryPayload);
+    const hasConfirmed = await confirmVariableTemplatePrompt(promptPreview);
+    if (!hasConfirmed) {
+      message(compositionMessage, "Bitte ergänze die fehlenden Informationen im Prompt, bevor du weitergehst.", true);
+      return;
+    }
+  }
+
   const now = new Date();
   const postingDate = now.toLocaleDateString("de-CH");
   const postingTime = now.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -476,6 +495,76 @@ const validateComposer = async () => {
     message(compositionMessage, `Posting-Job konnte nicht gespeichert werden: ${error.message}`, true);
   }
 };
+
+const buildComposerPromptPreview = (composer, payload) => {
+  const mediaSection = payload.media_items
+    .map((item) => {
+      const instructions = item.image_editing_instructions
+        ? `\n  - Bildbearbeitung: ${item.image_editing_instructions}`
+        : "";
+      return `${item.position}. ${item.file_name || "Unbenannte Datei"} (${item.image_editing_name})${instructions}`;
+    })
+    .join("\n");
+
+  const variableHintsSection = composer.variableTemplateHints
+    .map((hint) => `- ${hint.slotLabel} (${hint.templateName})${hint.infoText ? `: ${hint.infoText}` : ""}`)
+    .join("\n");
+
+  return `POST-INFOS:
+${payload.post_info}
+
+CAPTION-ANFORDERUNGEN:
+${payload.caption_requirements || "-"}
+
+HASHTAG-ANFORDERUNGEN:
+${payload.hashtag_requirements || "-"}
+
+SPEZIELLE HINWEISE:
+${payload.special_requirements || "-"}
+
+MEDIEN:
+${mediaSection || "-"}
+
+VARIABLE TEMPLATE-TEXTFELDER:
+${variableHintsSection || "-"}`;
+};
+
+const confirmVariableTemplatePrompt = (promptText) =>
+  new Promise((resolve) => {
+    if (!composerTemplateCheckModal || !composerTemplateCheckPrompt) {
+      resolve(window.confirm("Sind alle Informationen für den variablen Template-Text vorhanden?"));
+      return;
+    }
+
+    composerTemplateCheckPrompt.textContent = promptText;
+
+    const cleanup = () => {
+      composerTemplateCheckConfirmBtn?.removeEventListener("click", handleConfirm);
+      composerTemplateCheckCancelBtn?.removeEventListener("click", handleCancel);
+      composerTemplateCheckCloseBtn?.removeEventListener("click", handleCancel);
+      composerTemplateCheckModal.removeEventListener("cancel", handleCancel);
+      composerTemplateCheckModal.removeEventListener("close", handleClose);
+    };
+
+    const finish = (result) => {
+      cleanup();
+      if (composerTemplateCheckModal.open) {
+        composerTemplateCheckModal.close();
+      }
+      resolve(result);
+    };
+
+    const handleConfirm = () => finish(true);
+    const handleCancel = () => finish(false);
+    const handleClose = () => finish(composerTemplateCheckModal.returnValue === "confirm");
+
+    composerTemplateCheckConfirmBtn?.addEventListener("click", handleConfirm);
+    composerTemplateCheckCancelBtn?.addEventListener("click", handleCancel);
+    composerTemplateCheckCloseBtn?.addEventListener("click", handleCancel);
+    composerTemplateCheckModal.addEventListener("cancel", handleCancel);
+    composerTemplateCheckModal.addEventListener("close", handleClose);
+    composerTemplateCheckModal.showModal();
+  });
 
 const setPreview = (input, imgEl) => {
   const file = input.files?.[0];
