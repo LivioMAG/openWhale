@@ -308,6 +308,7 @@ const renderComposerSlots = (templateId) => {
     captionRequirements: selectedTemplate.caption_requirements ?? "",
     hashtagRequirements: selectedTemplate.hashtag_requirements ?? "",
     specialRequirements: selectedTemplate.special_requirements ?? "",
+    variableTemplateHints: getVariableTemplateHints(slots),
   };
 
   const slotMarkup = buildComposerSlotsMarkup(slots, activeComposer.assignments);
@@ -316,7 +317,20 @@ const renderComposerSlots = (templateId) => {
   slotsWrap.innerHTML = `
     <div class="composer-workspace">
       <label class="composer-post-info">
-        Infos zum Post
+        <span class="composer-post-info-head">
+          <span>Infos zum Post</span>
+          ${
+            activeComposer.variableTemplateHints.length
+              ? `<button
+                  id="composer-variable-text-hint-btn"
+                  type="button"
+                  class="icon-btn warning composer-hint-btn"
+                  title="Hinweis zu variablem Template-Text"
+                  aria-label="Hinweis zu variablem Template-Text"
+                >❗</button>`
+              : ""
+          }
+        </span>
         <textarea id="composer-post-info" rows="3" placeholder="Kurzinfo zum Post"></textarea>
       </label>
       <div class="composer-images-box">
@@ -632,6 +646,21 @@ const getTemplateLabelById = (templateId) => {
   return match.name ?? `Vorlage #${templateId}`;
 };
 
+const getVariableTemplateHints = (slots) =>
+  slots
+    .map((slot, index) => {
+      const templateOption = getTemplateOptionById(slot.templateRef);
+      if (!templateOption?.variable_template_text) {
+        return null;
+      }
+      return {
+        slotLabel: slot.label || `Slot ${index + 1}`,
+        templateName: templateOption.name ?? getTemplateLabelById(slot.templateRef),
+        infoText: (templateOption.template_info ?? "").trim(),
+      };
+    })
+    .filter(Boolean);
+
 const serializeCarouselStructure = () =>
   carouselSelection.map((templateId, index) => ({
     position: index + 1,
@@ -749,7 +778,7 @@ const getLinkedContentTemplatesByImageEditing = (entryId) =>
 const loadImageEditingTemplateOptions = async () => {
   const { data, error } = await supabase
     .from("image_editings")
-    .select("id, name, editing_instructions, image_url")
+    .select("id, name, editing_instructions, image_url, variable_template_text, template_info")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1310,6 +1339,22 @@ const setupEvents = () => {
   });
 
   compositionArea.addEventListener("click", (event) => {
+    const variableHintBtn = event.target.closest("#composer-variable-text-hint-btn");
+    if (variableHintBtn && activeComposer) {
+      const affectedSlots = activeComposer.variableTemplateHints
+        .map((hint) => {
+          const details = hint.infoText ? `\nBeispiel aus dem Template: ${hint.infoText}` : "";
+          return `• ${hint.slotLabel} (${hint.templateName})${details}`;
+        })
+        .join("\n\n");
+
+      openTextModal(
+        "Hinweis zu variablem Template-Text",
+        `Bitte hier nicht nur die Caption beschreiben, sondern auch den Inhalt für den Text in den Template-Platzhaltern.\n\nBeschreibe grob, worum es geht (z. B. Name, Ort, Kernaussage).\n\nBetroffene Slots:\n${affectedSlots}`
+      );
+      return;
+    }
+
     const slotInfoBtn = event.target.closest(".slot-info-btn");
     if (slotInfoBtn) {
       const templateRef = Number(slotInfoBtn.dataset.templateRef);
