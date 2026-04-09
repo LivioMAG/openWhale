@@ -450,9 +450,10 @@ const validateComposer = async () => {
 
   try {
     await createPostingJob({
-      title,
-      payload: summaryPayload,
-      userId: currentUserId,
+      payload: {
+        title,
+        ...summaryPayload,
+      },
     });
     await loadPostingJobs();
     message(compositionMessage, "Posting-Job wurde gespeichert.");
@@ -887,7 +888,7 @@ const deleteContentTemplate = async (templateId) => {
   }
 };
 
-const createPostingJob = async ({ title, payload, userId }) => {
+const createPostingJob = async ({ payload }) => {
   const defaultOutput = {
     caption: "",
     hashtags: [],
@@ -900,27 +901,10 @@ const createPostingJob = async ({ title, payload, userId }) => {
   };
 
   const { error } = await supabase.from("posting_jobs").insert({
-    posting_name: title,
     payload,
     output: defaultOutput,
     "isDone": false,
-    posted_by_user_id: userId,
-    post_input: "",
-    content_type: "post",
-    content_template_name: "",
   });
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
-const updatePostingJobName = async (jobId, postingName) => {
-  const safeName = (postingName ?? "").trim();
-  if (!safeName) {
-    throw new Error("Der Posting-Name darf nicht leer sein.");
-  }
-
-  const { error } = await supabase.from("posting_jobs").update({ posting_name: safeName }).eq("id", jobId);
   if (error) {
     throw new Error(error.message);
   }
@@ -961,15 +945,10 @@ const renderPostingJobs = (rows) => {
 
   postingJobsBody.innerHTML = rows
     .map((row) => {
-      const postingName = row.posting_name || row.content_template_name || "-";
+      const postingName = row.payload?.title || `Auftrag #${row.id}`;
       return `
       <tr>
-        <td>
-          <div class="posting-name-cell">
-            <input type="text" value="${postingName}" data-posting-name-input="${row.id}" maxlength="120" />
-            <button type="button" class="ghost posting-name-save-btn" data-posting-name-save="${row.id}">Speichern</button>
-          </div>
-        </td>
+        <td>${postingName}</td>
         <td>
           ${renderPostingOutput(row)}
         </td>
@@ -980,7 +959,10 @@ const renderPostingJobs = (rows) => {
 };
 
 const loadPostingJobs = async () => {
-  const { data, error } = await supabase.from("posting_jobs").select("*").order("created_at", { ascending: false });
+  const { data, error } = await supabase
+    .from("posting_jobs")
+    .select("id,payload,output,isDone,created_at,updated_at")
+    .order("created_at", { ascending: false });
   if (error) {
     message(postingMessage, `Posting-Jobs konnten nicht geladen werden: ${error.message}`, true);
     return;
@@ -1626,7 +1608,7 @@ const setupEvents = () => {
     }
 
     if (isTemplate && templateHasVariableText && !templateInfo) {
-      message(createMessage, "Bei variablem Text bitte angeben, was variabel und was fix ist.", true);
+      message(createMessage, 'Bitte fülle das Feld "Variable Textfelder" aus (Vorlagen-Text + gewünschter Texttyp).', true);
       return;
     }
 
@@ -1837,28 +1819,6 @@ const setupEvents = () => {
     } catch (err) {
       message(contentTemplatesMessage, `Löschen fehlgeschlagen: ${err.message}`, true);
     }
-  });
-
-  postingJobsBody.addEventListener("click", (event) => {
-    const saveBtn = event.target.closest(".posting-name-save-btn");
-    if (!saveBtn) {
-      return;
-    }
-
-    const jobId = Number(saveBtn.dataset.postingNameSave);
-    const input = postingJobsBody.querySelector(`[data-posting-name-input="${jobId}"]`);
-    if (!input) {
-      return;
-    }
-
-    updatePostingJobName(jobId, input.value)
-      .then(async () => {
-        await loadPostingJobs();
-        message(postingMessage, "Posting-Name wurde gespeichert.");
-      })
-      .catch((error) => {
-        message(postingMessage, `Posting-Name konnte nicht gespeichert werden: ${error.message}`, true);
-      });
   });
 
   cancelEditModalBtn.addEventListener("click", () => editModal.close());
