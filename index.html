@@ -196,12 +196,19 @@
 
         <label class="check-row">
           <input id="template-has-variable-text" type="checkbox" />
-          Gibt es variablen Text?
+          Gibt es variablen Template-Text?
         </label>
 
         <label id="template-info-wrapper" class="hidden">
           Variable Textfelder
-          <textarea id="template-info" rows="3" placeholder="Welche Teile sind variabel und welche fix?"></textarea>
+          <textarea id="template-info" rows="4" placeholder="Beispiel: &quot;Text im Template: MAX MUSTERMANN&quot; -> Texttyp: &quot;Name der Person&quot;&#10;&quot;Text im Template: Zürich, 42&quot; -> Texttyp: &quot;Wohnort + Alter&quot;"></textarea>
+          <div class="template-info-card">
+            <strong>So füllst du dieses Feld aus:</strong>
+            <ul>
+              <li>1) Welcher exakte Text im Template ersetzt werden soll.</li>
+              <li>2) Mit welchem <em>Texttyp</em> er ersetzt wird (z. B. Zitat, Name, Wohnort + Alter).</li>
+            </ul>
+          </div>
         </label>
       </div>
 
@@ -235,8 +242,11 @@
         <input id="edit-entry-name" type="text" required maxlength="120" />
       </label>
       <label>
-        Template Textfelder
-        <textarea id="edit-template-info" rows="3"></textarea>
+        Variable Textfelder
+        <textarea id="edit-template-info" rows="4" placeholder="&quot;Text im Template: ...&quot; -> Texttyp: ..."></textarea>
+        <div class="template-info-card">
+          <strong>Hinweis:</strong> Bitte immer Original-Text im Template + gewünschten Texttyp erfassen.
+        </div>
       </label>
       <label id="edit-template-img-wrapper" class="hidden">
         Template-Bild ersetzen

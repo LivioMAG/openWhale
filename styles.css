@@ -406,6 +406,25 @@ dialog form {
   gap: 0.3rem;
 }
 
+
+.template-info-card {
+  margin-top: 0.45rem;
+  border: 1px solid #d7e3ff;
+  background: #f4f8ff;
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  color: #344054;
+  font-size: 0.88rem;
+}
+
+.template-info-card ul {
+  margin: 0.35rem 0 0 1rem;
+  padding: 0;
+}
+
+.template-info-card li {
+  margin: 0.2rem 0;
+}
 .template-card p {
   margin: 0;
   color: var(--muted);

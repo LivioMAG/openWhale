@@ -388,57 +388,26 @@ create policy "auth users can read media assets"
 
 create table if not exists public.posting_jobs (
   id bigint generated always as identity primary key,
-  content_template_id bigint references public.content_templates(id),
-  content_template_name text not null,
-  content_type text not null check (content_type in ('post', 'carousel')),
-  posted_by_user_id uuid references auth.users(id),
-  post_input text not null,
-  units jsonb not null default '[]'::jsonb,
-  image_editing_image_map jsonb not null default '[]'::jsonb,
   payload jsonb not null default '{}'::jsonb,
+  output jsonb not null default '{}'::jsonb,
   "isDone" boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-alter table public.posting_jobs add column if not exists content_template_name text;
-alter table public.posting_jobs add column if not exists content_type text;
-alter table public.posting_jobs add column if not exists posted_by_user_id uuid references auth.users(id);
-alter table public.posting_jobs add column if not exists post_input text;
-alter table public.posting_jobs add column if not exists units jsonb not null default '[]'::jsonb;
-alter table public.posting_jobs add column if not exists image_editing_image_map jsonb not null default '[]'::jsonb;
 alter table public.posting_jobs add column if not exists payload jsonb not null default '{}'::jsonb;
 alter table public.posting_jobs add column if not exists output jsonb not null default '{}'::jsonb;
-alter table public.posting_jobs add column if not exists posting_name text;
 alter table public.posting_jobs add column if not exists "isDone" boolean not null default false;
 alter table public.posting_jobs add column if not exists updated_at timestamptz not null default now();
 
-update public.posting_jobs
-set content_template_name = coalesce(nullif(trim(content_template_name), ''), 'Unbenannte Vorlage')
-where content_template_name is null or trim(content_template_name) = '';
-
-update public.posting_jobs
-set posting_name = coalesce(nullif(trim(posting_name), ''), content_template_name, 'Auftrag')
-where posting_name is null or trim(posting_name) = '';
-
-update public.posting_jobs
-set content_type = coalesce(nullif(trim(content_type), ''), 'post')
-where content_type is null or trim(content_type) = '';
-
-update public.posting_jobs
-set post_input = coalesce(post_input, '')
-where post_input is null;
-
-alter table public.posting_jobs
-  alter column content_template_name set not null,
-  alter column content_type set not null,
-  alter column posting_name set not null,
-  alter column post_input set not null;
-
-alter table public.posting_jobs
-  drop constraint if exists posting_jobs_content_type_valid,
-  add constraint posting_jobs_content_type_valid
-  check (content_type in ('post', 'carousel'));
+alter table public.posting_jobs drop column if exists content_template_id;
+alter table public.posting_jobs drop column if exists content_template_name;
+alter table public.posting_jobs drop column if exists content_type;
+alter table public.posting_jobs drop column if exists posted_by_user_id;
+alter table public.posting_jobs drop column if exists post_input;
+alter table public.posting_jobs drop column if exists posting_name;
+alter table public.posting_jobs drop column if exists units;
+alter table public.posting_jobs drop column if exists image_editing_image_map;
 
 create or replace function public.set_posting_jobs_updated_at()
 returns trigger
