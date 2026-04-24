@@ -115,7 +115,7 @@ project-root/
 │   └── setup.md
 │
 └── README.md
-```text
+---
 ##Backend-Struktur
 
 Alle Supabase-relevanten Dinge liegen IMMER in:
