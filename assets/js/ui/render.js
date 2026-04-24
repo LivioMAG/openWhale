@@ -14,8 +14,8 @@ function authHeader(title, subtitle) {
 
 export function renderAuthView() {
   const root = document.getElementById("auth-container");
-  const accountRoot = document.getElementById("account-container");
-  accountRoot.classList.add("hidden");
+  const dashboardRoot = document.getElementById("dashboard-container");
+  dashboardRoot.classList.add("hidden");
   root.classList.remove("hidden");
 
   if (state.currentView === "login") {
@@ -71,15 +71,58 @@ export function renderAuthView() {
   }
 }
 
-export function renderAccountSettings(user) {
-  const root = document.getElementById("account-container");
-  const authRoot = document.getElementById("auth-container");
-  authRoot.classList.add("hidden");
-  root.classList.remove("hidden");
+function renderOrdersList() {
+  if (state.loading.orders) {
+    return `<p class="context-note">Aufträge werden geladen …</p>`;
+  }
+  if (!state.orders.length) {
+    return `<p class="empty-state">Noch keine Aufträge vorhanden.</p>`;
+  }
 
+  return `<ul class="order-list">${state.orders
+    .map(
+      (order) => `<li>
+        <button class="order-item" data-order-open="${order.id}" type="button">
+          <strong>${order.order_number}</strong>
+          ${order.order_name ? `<span>${order.order_name}</span>` : '<span class="text-muted">Ohne Auftragsname</span>'}
+        </button>
+      </li>`
+    )
+    .join("")}</ul>`;
+}
+
+function renderImageGeneration() {
+  return `<section class="dashboard-panel">
+    <div class="panel-headline">
+      <div>
+        <h2>Bilderstellung</h2>
+        <p class="context-note">Verwalte deine Aufträge und öffne die Detailansicht per Klick.</p>
+      </div>
+      <button id="open-order-create" class="btn btn--primary" type="button">➕ Auftrag anlegen</button>
+    </div>
+    ${state.feedback ? feedbackBox(state.feedback) : ""}
+    ${
+      state.orderCreationOpen
+        ? `<form id="order-create-form" class="inline-form">
+            ${inputField({ id: "order-name", label: "Auftragsname (optional)", required: false })}
+            <div class="actions">
+              <button class="btn btn--primary" type="submit" ${state.loading.creatingOrder ? "disabled" : ""}>${
+                state.loading.creatingOrder ? "Wird erstellt …" : "Erstellen"
+              }</button>
+              <button id="cancel-order-create" class="btn btn--ghost" type="button">Abbrechen</button>
+            </div>
+          </form>`
+        : ""
+    }
+    ${renderOrdersList()}
+  </section>`;
+}
+
+function renderAccountSettings(user) {
   const data = user?.user_metadata || {};
-  root.innerHTML = `<h2>Account Settings</h2>
-    <p class="context-note">OpenWale für professionelle Bildbearbeitung von Immobilien.</p>
+  return `<section class="dashboard-panel">
+    <h2>Account Settings</h2>
+    <p class="context-note">Profil- und Passwortverwaltung.</p>
     ${feedbackBox(state.feedback)}
     <form id="profile-form">
       ${inputField({ id: "acc-first-name", label: "Vorname", value: data.first_name || "" })}
@@ -97,5 +140,85 @@ export function renderAccountSettings(user) {
     <hr />
     <div class="actions">
       <button id="delete-account" type="button" class="btn btn--danger">Account löschen</button>
-    </div>`;
+    </div>
+  </section>`;
+}
+
+function getFilteredTemplates() {
+  const query = state.tagQuery.trim().toLowerCase();
+  if (!query) return state.templates;
+  return state.templates.filter((template) => (template.tags || []).some((tag) => tag.toLowerCase().includes(query)));
+}
+
+function renderOrderDetail() {
+  const order = state.orders.find((entry) => entry.id === state.activeOrderId);
+  const filteredTemplates = getFilteredTemplates();
+  const allTags = [...new Set(state.templates.flatMap((template) => template.tags || []))].sort((a, b) => a.localeCompare(b));
+
+  return `<section class="order-detail-view">
+    <button id="order-detail-back" class="btn btn--ghost order-detail-back" type="button">← Zurück zur Bilderstellung</button>
+    <header>
+      <h2>${order?.order_number || "Auftrag"}</h2>
+      ${order?.order_name ? `<p class="context-note">${order.order_name}</p>` : '<p class="context-note">Kein Auftragsname vergeben.</p>'}
+    </header>
+    ${feedbackBox(state.feedback)}
+    <div class="order-detail-layout">
+      <div class="upload-panel" id="upload-dropzone">
+        <h3>Foto hochladen</h3>
+        <input id="photo-upload" type="file" accept="image/*" />
+        ${
+          state.uploadedImageName
+            ? `<p class="context-note">Hochgeladen: ${state.uploadedImageName}</p>`
+            : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
+        }
+        <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
+      </div>
+      <aside class="template-panel">
+        <h3>Templates</h3>
+        <label for="tag-filter">Tag-Suche</label>
+        <input id="tag-filter" name="tag-filter" list="template-tag-options" value="${state.tagQuery}" placeholder="z. B. Kinderzimmer" autocomplete="off" />
+        <datalist id="template-tag-options">
+          ${allTags.map((tag) => `<option value="${tag}"></option>`).join("")}
+        </datalist>
+        ${
+          state.loading.templates
+            ? '<p class="context-note">Templates werden geladen …</p>'
+            : !state.templates.length
+              ? '<p class="empty-state">Keine Templates vorhanden.</p>'
+              : !filteredTemplates.length
+                ? '<p class="empty-state">Keine Templates für den gesuchten Tag gefunden.</p>'
+                : `<ul class="template-list">${filteredTemplates
+                    .map(
+                      (template) => `<li>
+                          <button class="template-item" draggable="true" data-template-id="${template.id}" type="button">
+                            <strong>Template ${template.id.slice(0, 8)}</strong>
+                            <span>${(template.tags || []).join(", ") || "Keine Tags"}</span>
+                          </button>
+                        </li>`
+                    )
+                    .join("")}</ul>`
+        }
+      </aside>
+    </div>
+  </section>`;
+}
+
+export function renderDashboard(user) {
+  const root = document.getElementById("dashboard-container");
+  const authRoot = document.getElementById("auth-container");
+  authRoot.classList.add("hidden");
+  root.classList.remove("hidden");
+
+  if (state.activeOrderId) {
+    root.innerHTML = renderOrderDetail();
+    return;
+  }
+
+  root.innerHTML = `<section class="dashboard-layout">
+      <nav class="side-nav" aria-label="Dashboard Navigation">
+        <button type="button" class="side-nav__item ${state.dashboardSection === "image-generation" ? "is-active" : ""}" data-nav-section="image-generation">Bilderstellung</button>
+        <button type="button" class="side-nav__item side-nav__item--bottom ${state.dashboardSection === "account" ? "is-active" : ""}" data-nav-section="account">Account Settings</button>
+      </nav>
+      ${state.dashboardSection === "account" ? renderAccountSettings(user) : renderImageGeneration()}
+    </section>`;
 }

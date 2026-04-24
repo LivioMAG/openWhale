@@ -7,26 +7,41 @@ import {
   verifyOneTimeCode,
   updateUserMetadata,
   updatePassword,
-  sendPasswordReset,
   signOut,
   deleteAccount
 } from "../services/authService.js";
-import { renderAccountSettings, renderAppbar, renderAuthView } from "./render.js";
+import { createOrder, listOrders, listTemplates } from "../services/dashboardService.js";
+import { renderAppbar, renderAuthView, renderDashboard } from "./render.js";
 
 function setFeedback(type, message) {
   setState({ feedback: { type, message } });
 }
 
-export function bindGlobalEvents(getUser, refreshSession) {
-  document.getElementById("account-settings-btn").addEventListener("click", async () => {
-    setState({ currentView: "account", feedback: null });
-    renderAccountSettings(getUser());
-  });
+async function refreshDashboardData(getUser) {
+  const userId = getUser()?.id;
+  if (!userId) return;
 
+  setState({ loading: { ...state.loading, orders: true, templates: true } });
+  renderDashboard(getUser());
+
+  try {
+    const [orders, templates] = await Promise.all([listOrders(userId), listTemplates(userId)]);
+    setState({ orders, templates, feedback: null });
+  } catch (error) {
+    setFeedback("error", `Supabase-Fehler: ${normalizeError(error)}`);
+  } finally {
+    setState({ loading: { ...state.loading, orders: false, templates: false } });
+    renderDashboard(getUser());
+  }
+}
+
+export function bindGlobalEvents(getUser, refreshSession) {
   document.getElementById("logout-btn").addEventListener("click", async () => {
     await signOut();
     await refreshSession();
   });
+
+  window.__refreshDashboardData = () => refreshDashboardData(getUser);
 }
 
 export function bindAuthEvents(refreshSession) {
@@ -125,14 +140,90 @@ export function bindAuthEvents(refreshSession) {
   };
 }
 
-export function bindAccountEvents(getUser, refreshSession) {
-  const root = document.getElementById("account-container");
+export function bindDashboardEvents(getUser) {
+  const root = document.getElementById("dashboard-container");
+
+  root.onclick = async (event) => {
+    const navSection = event.target.dataset?.navSection;
+    const orderToOpen = event.target.dataset?.orderOpen;
+
+    if (navSection) {
+      setState({ dashboardSection: navSection, feedback: null });
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (event.target.id === "open-order-create") {
+      setState({ orderCreationOpen: true, feedback: null });
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (event.target.id === "cancel-order-create") {
+      setState({ orderCreationOpen: false });
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (orderToOpen) {
+      setState({ activeOrderId: orderToOpen, tagQuery: "", uploadedImageName: "", feedback: null });
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (event.target.id === "order-detail-back") {
+      setState({ activeOrderId: null, selectedTemplateId: null, feedback: null });
+      renderDashboard(getUser());
+      return;
+    }
+
+
+    if (event.target.id === "delete-account") {
+      try {
+        await deleteAccount();
+        await signOut();
+        window.location.hash = "";
+        window.location.reload();
+      } catch (error) {
+        setFeedback("warning", `${normalizeError(error)} Wenn nicht vorhanden, Edge Function backend/functions/delete-account/index.ts bereitstellen.`);
+        renderDashboard(getUser());
+      }
+      return;
+    }
+  };
+
+  root.oninput = (event) => {
+    if (event.target.id === "tag-filter") {
+      setState({ tagQuery: event.target.value });
+      renderDashboard(getUser());
+    }
+  };
+
+  root.onchange = (event) => {
+    if (event.target.id === "photo-upload") {
+      const file = event.target.files?.[0];
+      setState({ uploadedImageName: file?.name || "" });
+      renderDashboard(getUser());
+    }
+  };
 
   root.onsubmit = async (event) => {
     event.preventDefault();
     const form = new FormData(event.target);
 
     try {
+      if (event.target.id === "order-create-form") {
+        setState({ loading: { ...state.loading, creatingOrder: true } });
+        renderDashboard(getUser());
+        const createdOrder = await createOrder(getUser().id, form.get("order-name"));
+        setState({
+          loading: { ...state.loading, creatingOrder: false },
+          orders: [createdOrder, ...state.orders],
+          orderCreationOpen: false,
+          feedback: { type: "success", message: `Auftrag ${createdOrder.order_number} erstellt.` }
+        });
+      }
+
       if (event.target.id === "profile-form") {
         await updateUserMetadata({
           first_name: form.get("acc-first-name"),
@@ -153,20 +244,79 @@ export function bindAccountEvents(getUser, refreshSession) {
       }
     } catch (error) {
       setFeedback("error", normalizeError(error));
+      setState({ loading: { ...state.loading, creatingOrder: false } });
     }
 
-    renderAccountSettings(getUser());
+    renderDashboard(getUser());
   };
 
-  root.onclick = async (event) => {
-    if (event.target.id !== "delete-account") return;
-    try {
-      await deleteAccount();
-      await signOut();
-      await refreshSession();
-    } catch (error) {
-      setFeedback("warning", `${normalizeError(error)} Wenn nicht vorhanden, Edge Function backend/functions/delete-account/index.ts bereitstellen.`);
-      renderAccountSettings(getUser());
+  root.ondragstart = (event) => {
+    const templateId = event.target.dataset?.templateId;
+    if (!templateId) return;
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("text/template-id", templateId);
+  };
+
+  root.ondragover = (event) => {
+    if (event.target.closest("#upload-dropzone")) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
     }
   };
+
+  root.ondrop = (event) => {
+    const dropzone = event.target.closest("#upload-dropzone");
+    if (!dropzone) return;
+    event.preventDefault();
+
+    if (!state.uploadedImageName) {
+      setFeedback("warning", "Upload fehlt: Bitte zuerst ein Foto hochladen.");
+      renderDashboard(getUser());
+      return;
+    }
+
+    const templateId = event.dataTransfer.getData("text/template-id");
+    if (!templateId) return;
+
+    setState({ selectedTemplateId: templateId });
+
+    const dialog = document.createElement("dialog");
+    dialog.id = "template-confirm-dialog";
+    dialog.className = "confirm-dialog";
+    dialog.innerHTML = `<form method="dialog">
+      <h3>Template anwenden?</h3>
+      <p class="context-note">Template-ID: ${templateId.slice(0, 8)}</p>
+      <menu>
+        <button id="confirm-template-apply" class="btn btn--primary" value="confirm">Ja</button>
+        <button class="btn btn--ghost" value="cancel">Abbrechen</button>
+      </menu>
+    </form>`;
+
+    document.body.appendChild(dialog);
+
+    const confirmButton = dialog.querySelector("#confirm-template-apply");
+    confirmButton?.addEventListener("click", () => {
+      setState({
+        feedback: {
+          type: "success",
+          message: "Template-Bestätigung gespeichert. TODO: tatsächliche Anwendung implementieren."
+        }
+      });
+      renderDashboard(getUser());
+    });
+
+    dialog.addEventListener("close", () => dialog.remove());
+    dialog.showModal();
+  };
+}
+
+export async function hydrateDashboard(getUser) {
+  setState({
+    currentView: "dashboard",
+    dashboardSection: "image-generation",
+    activeOrderId: null,
+    tagQuery: "",
+    feedback: null
+  });
+  await refreshDashboardData(getUser);
 }
