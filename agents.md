@@ -12,7 +12,7 @@ Erstelle eine standardisierte, saubere und skalierbare Projektstruktur für Webp
 ---
 
 ## Grundprinzipien
-
+```text
 
 HTML = Struktur
 CSS = Design
@@ -21,7 +21,7 @@ Supabase = Backend
 SQL = Datenbankstruktur
 TypeScript (Functions) = Backend-Logik (Server)
 JSON = Konfiguration
-##Standard-Projektstruktur
+## Standard-Projektstruktur
 project-root/
 │
 ├── index.html
@@ -115,8 +115,8 @@ project-root/
 │   └── setup.md
 │
 └── README.md
----
-##Backend-Struktur
+
+### Backend-Struktur
 
 Alle Supabase-relevanten Dinge liegen IMMER in:
 
