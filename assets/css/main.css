@@ -36,6 +36,11 @@ body {
   padding: var(--space-3);
 }
 h1, h2 { margin-top: 0; line-height: 1.2; }
+.context-note {
+  margin: -4px 0 var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
 .form-group { margin-bottom: var(--space-2); }
 label { display: block; font-weight: 600; margin-bottom: 6px; }
 input {
