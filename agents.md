@@ -13,7 +13,7 @@ Erstelle eine standardisierte, saubere und skalierbare Projektstruktur für Webp
 
 ## Grundprinzipien
 
-```text
+
 HTML = Struktur
 CSS = Design
 JavaScript = Logik (Frontend)
