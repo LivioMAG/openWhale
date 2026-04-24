@@ -6,7 +6,10 @@ export function renderAppbar() {
 }
 
 function authHeader(title, subtitle) {
-  return `<h1>${title}</h1><p>${subtitle}</p>${feedbackBox(state.feedback)}`;
+  return `<h1>${title}</h1>
+    <p>${subtitle}</p>
+    <p class="context-note">OpenWale für professionelle Bildbearbeitung von Immobilien.</p>
+    ${feedbackBox(state.feedback)}`;
 }
 
 export function renderAuthView() {
@@ -76,6 +79,7 @@ export function renderAccountSettings(user) {
 
   const data = user?.user_metadata || {};
   root.innerHTML = `<h2>Account Settings</h2>
+    <p class="context-note">OpenWale für professionelle Bildbearbeitung von Immobilien.</p>
     ${feedbackBox(state.feedback)}
     <form id="profile-form">
       ${inputField({ id: "acc-first-name", label: "Vorname", value: data.first_name || "" })}
