@@ -1,7 +1,7 @@
 import { setState, state } from "./core/state.js";
 import { getSession } from "./services/authService.js";
-import { bindAccountEvents, bindAuthEvents, bindGlobalEvents } from "./ui/events.js";
-import { renderAccountSettings, renderAppbar, renderAuthView } from "./ui/render.js";
+import { bindAuthEvents, bindDashboardEvents, bindGlobalEvents, hydrateDashboard } from "./ui/events.js";
+import { renderAppbar, renderAuthView, renderDashboard } from "./ui/render.js";
 
 let currentUser = null;
 
@@ -13,15 +13,16 @@ async function refreshSession() {
   try {
     const session = await getSession();
     currentUser = session?.user || null;
-    setState({ session, feedback: null, currentView: session ? "account" : "login" });
+    setState({ session, feedback: null, currentView: session ? "dashboard" : "login" });
   } catch (error) {
     currentUser = null;
     setState({ session: null, currentView: "login", feedback: { type: "error", message: error.message } });
   }
 
   renderAppbar();
-  if (state.session && state.currentView === "account") {
-    renderAccountSettings(getUser());
+  if (state.session && state.currentView === "dashboard") {
+    await hydrateDashboard(getUser);
+    renderDashboard(getUser());
   } else {
     renderAuthView();
   }
@@ -29,12 +30,5 @@ async function refreshSession() {
 
 bindGlobalEvents(getUser, refreshSession);
 bindAuthEvents(refreshSession);
-bindAccountEvents(getUser, refreshSession);
+bindDashboardEvents(getUser);
 await refreshSession();
-
-window.addEventListener("hashchange", () => {
-  if (window.location.hash === "#account" && state.session) {
-    setState({ currentView: "account" });
-    renderAccountSettings(getUser());
-  }
-});
