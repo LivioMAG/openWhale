@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>openWhale Auth</title>
+    <link rel="stylesheet" href="assets/css/main.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Zum Inhalt springen</a>
+    <header id="appbar" class="appbar hidden" aria-label="Hauptnavigation">
+      <div class="appbar__brand">openWhale</div>
+      <div class="appbar__actions">
+        <button id="account-settings-btn" class="btn btn--secondary" type="button">Account Settings</button>
+        <button id="logout-btn" class="btn btn--ghost" type="button">Logout</button>
+      </div>
+    </header>
+
+    <main id="main-content" class="layout" tabindex="-1">
+      <section id="auth-container" class="card" aria-live="polite"></section>
+      <section id="account-container" class="card hidden" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>
