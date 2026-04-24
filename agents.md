@@ -218,6 +218,37 @@ export function getClient() {
 
 ---
 
+## Design-Richtlinien (Supabase-orientiert)
+
+Damit das UI konsistent ist, soll sich das gesamte Design visuell an **Supabase** orientieren.
+
+### Theme & Farbwelt
+
+- Nutze primär ein **helles Theme** als Standard (Light Theme first).
+- Primärfarbe/Accent: **Supabase-Grün** (für Buttons, Links, aktive States).
+- Hintergrund in hellen, neutralen Tönen mit klarer Kontrast-Hierarchie.
+- Statusfarben (Success, Warning, Error) dezent und modern, ohne Neon-Look.
+
+### Typografie
+
+- Verwende eine klare, moderne Sans-Serif-Schrift.
+- Gute Lesbarkeit und ausreichender Zeilenabstand sind Pflicht.
+- Überschriften klar hierarchisch (H1/H2/H3), Fließtext eher neutral und leicht.
+
+### Komponenten-Stil
+
+- Cards/Container mit dezenten Borders und leichtem Radius.
+- Inputs und Buttons mit klaren Hover-/Focus-States.
+- Fokus auf ruhiges, professionelles UI statt überladenen Effekten.
+- Konsistente Spacing-Regeln (z. B. 8px-Basisraster).
+
+### UX-Prinzipien
+
+- Minimalistisch, funktional und developer-friendly.
+- Klare visuelle Hierarchie für Dashboard-, Formular- und Tabellenansichten.
+- Responsives Verhalten für Desktop zuerst, mobil sauber nachziehen.
+- Barrierearme Kontraste und sichtbare Focus-Styles.
+
 ## Frontend vs. Backend
 
 ### Frontend
