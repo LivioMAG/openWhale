@@ -34,18 +34,35 @@ export function bindAuthEvents(refreshSession) {
 
   root.onclick = async (event) => {
     const id = event.target.id;
-    if (id === "goto-register") setState({ currentView: "register", feedback: null });
-    if (id === "goto-forgot") setState({ currentView: "forgot", feedback: null });
-    if (id === "back-to-login" || id === "forgot-back-login") setState({ currentView: "login", feedback: null });
+    let shouldRerender = false;
+
+    if (id === "goto-register") {
+      setState({ currentView: "register", feedback: null });
+      shouldRerender = true;
+    }
+
+    if (id === "goto-forgot") {
+      setState({ currentView: "forgot", feedback: null });
+      shouldRerender = true;
+    }
+
+    if (id === "back-to-login" || id === "forgot-back-login") {
+      setState({ currentView: "login", feedback: null });
+      shouldRerender = true;
+    }
+
     if (id === "resend-code") {
       try {
         await requestOneTimeCode(state.otcEmail);
         setFeedback("success", "Code erneut versendet.");
+        shouldRerender = true;
       } catch (error) {
         setFeedback("error", normalizeError(error));
+        shouldRerender = true;
       }
     }
-    renderAuthView();
+
+    if (shouldRerender) renderAuthView();
   };
 
   root.onsubmit = async (event) => {
