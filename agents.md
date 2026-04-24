@@ -1,19 +1,21 @@
+# AGENTS.md
+
 ## Ziel
 
 Erstelle eine standardisierte, saubere und skalierbare Projektstruktur für Webprojekte mit:
 
-- HTML (Struktur)  
-- CSS (Design)  
-- JavaScript (Logik)  
-- Supabase als Backend  
-- JSON für Konfiguration (Credentials & Webhooks)  
-- SQL + Functions (TypeScript) für Datenbank & Backend-Logik  
+- HTML (Struktur)
+- CSS (Design)
+- JavaScript (Logik)
+- Supabase als Backend
+- JSON für Konfiguration (Credentials & Webhooks)
+- SQL + Functions (TypeScript) für Datenbank & Backend-Logik
 
 ---
 
 ## Grundprinzipien
-```text
 
+```text
 HTML = Struktur
 CSS = Design
 JavaScript = Logik (Frontend)
@@ -21,7 +23,13 @@ Supabase = Backend
 SQL = Datenbankstruktur
 TypeScript (Functions) = Backend-Logik (Server)
 JSON = Konfiguration
+```
+
+---
+
 ## Standard-Projektstruktur
+
+```text
 project-root/
 │
 ├── index.html
@@ -46,31 +54,25 @@ project-root/
 │   │
 │   ├── js/
 │   │   ├── app.js
-│   │   │
 │   │   ├── config/
 │   │   │   ├── supabase.credentials.json
 │   │   │   └── webhooks.json
-│   │   │
 │   │   ├── core/
 │   │   │   ├── supabaseClient.js
 │   │   │   ├── state.js
 │   │   │   └── helpers.js
-│   │   │
 │   │   ├── services/
 │   │   │   ├── authService.js
 │   │   │   ├── databaseService.js
 │   │   │   └── webhookService.js
-│   │   │
 │   │   ├── ui/
 │   │   │   ├── render.js
 │   │   │   ├── events.js
 │   │   │   └── components.js
-│   │   │
 │   │   ├── modules/
 │   │   │   ├── dashboardModule.js
 │   │   │   ├── userModule.js
 │   │   │   └── adminModule.js
-│   │   │
 │   │   └── pages/
 │   │       ├── dashboard.js
 │   │       ├── profile.js
@@ -89,25 +91,19 @@ project-root/
 │   │   │   ├── 004_create_triggers.sql
 │   │   │   ├── 005_seed_data.sql
 │   │   │   └── XXX_full_setup.sql
-│   │   │
 │   │   └── schema/
 │   │       └── schema.sql
-│   │
 │   ├── functions/
 │   │   ├── _shared/
 │   │   │   ├── supabaseClient.ts
 │   │   │   ├── helpers.ts
 │   │   │   └── types.ts
-│   │   │
 │   │   ├── user-created/
 │   │   │   └── index.ts
-│   │   │
 │   │   ├── send-email/
 │   │   │   └── index.ts
-│   │   │
 │   │   └── webhook-handler/
 │   │       └── index.ts
-│   │
 │   └── config/
 │       └── supabase.config.json
 │
@@ -115,42 +111,59 @@ project-root/
 │   └── setup.md
 │
 └── README.md
+```
 
-### Backend-Struktur
+---
 
-Alle Supabase-relevanten Dinge liegen IMMER in:
+## Backend-Struktur
 
+### Grundregel
+
+Alle Supabase-relevanten Dinge liegen **immer** in:
+
+```text
 backend/
-SQL (Migrationen)
+```
 
-Pfad:
+### SQL (Migrationen)
 
+**Pfad:**
+
+```text
 backend/database/migrations/
+```
 
-Dateien:
+**Dateien:**
 
-001_create_tables.sql
-002_create_policies.sql
-003_create_functions.sql
-004_create_triggers.sql
-005_seed_data.sql
-XXX_full_setup.sql
-SQL-Regeln
-001 = Tabellen
-002 = Security (RLS / Policies)
-003 = SQL-Funktionen
-004 = Trigger
-005 = Seed Daten
-XXX = Komplettes Setup für neue Supabase
-TypeScript Functions (Supabase Edge Functions)
+- `001_create_tables.sql`
+- `002_create_policies.sql`
+- `003_create_functions.sql`
+- `004_create_triggers.sql`
+- `005_seed_data.sql`
+- `XXX_full_setup.sql`
 
-Pfad:
+### SQL-Regeln
 
+- `001` = Tabellen
+- `002` = Security (RLS / Policies)
+- `003` = SQL-Funktionen
+- `004` = Trigger
+- `005` = Seed-Daten
+- `XXX` = Komplettes Setup für neue Supabase-Instanz
+
+### TypeScript Functions (Supabase Edge Functions)
+
+**Pfad:**
+
+```text
 backend/functions/
+```
 
-Hier liegt ALLE Server-Logik.
+Hier liegt alle Server-Logik.
 
-Struktur der Functions
+#### Struktur der Functions
+
+```text
 backend/functions/
 │
 ├── _shared/
@@ -160,14 +173,21 @@ backend/functions/
 │
 ├── function-name/
 │   └── index.ts
-Regeln für Functions
-1. Jede Function hat einen eigenen Ordner
-2. Einstiegspunkt ist IMMER index.ts
-3. Shared Code kommt in _shared/
-4. Keine Duplikate
-5. Business-Logik gehört ins Backend (Functions)
-##Beispiel Function
-backend/functions/send-email/index.ts
+```
+
+#### Regeln für Functions
+
+1. Jede Function hat einen eigenen Ordner.
+2. Einstiegspunkt ist immer `index.ts`.
+3. Shared Code kommt in `_shared/`.
+4. Keine Duplikate.
+5. Business-Logik gehört ins Backend (Functions).
+
+#### Beispiel-Function
+
+**Datei:** `backend/functions/send-email/index.ts`
+
+```ts
 import { serve } from "https://deno.land/std/http/server.ts";
 
 serve(async (req) => {
@@ -179,8 +199,13 @@ serve(async (req) => {
     headers: { "Content-Type": "application/json" }
   });
 });
-Beispiel Shared Supabase Client
-backend/functions/_shared/supabaseClient.ts
+```
+
+#### Beispiel Shared Supabase Client
+
+**Datei:** `backend/functions/_shared/supabaseClient.ts`
+
+```ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
 
 export function getClient() {
@@ -189,27 +214,43 @@ export function getClient() {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 }
-Unterschied Frontend vs Backend
-Frontend:
-- assets/js/
-- nutzt anon key
+```
+
+---
+
+## Frontend vs. Backend
+
+### Frontend
+
+- `assets/js/`
+- nutzt Anon Key
 - keine sensiblen Daten
 
-Backend:
-- backend/functions/
+### Backend
+
+- `backend/functions/`
 - nutzt Service Role Key
 - enthält sichere Logik
-##WICHTIG
+
+### WICHTIG
+
 Frontend darf niemals:
+
 - Service Role Keys enthalten
-- direkte DB Admin Operationen machen
+- direkte DB-Admin-Operationen ausführen
 
 Backend darf:
-- sichere DB Operationen machen
-- Emails senden
+
+- sichere DB-Operationen ausführen
+- E-Mails senden
 - Webhooks verarbeiten
 - externe APIs nutzen
-##Erweiterte SQL-Struktur
+
+---
+
+## Erweiterte SQL-Struktur
+
+```text
 backend/database/
 │
 ├── migrations/
@@ -222,44 +263,38 @@ backend/database/
 │
 └── schema/
     └── schema.sql
-schema.sql
+```
+
+### `schema.sql`
+
 Optional:
-Vollständiger Export der aktuellen DB-Struktur
-Nur zur Referenz
-Nicht für Migrationen
-Reihenfolge SQL
+
+- Vollständiger Export der aktuellen DB-Struktur
+- nur zur Referenz
+- nicht für Migrationen
+
+### Reihenfolge SQL
+
 Normales Setup:
+
+```text
 001 → 002 → 003 → 004 → 005
+```
 
 Neues Projekt:
+
+```text
 XXX_full_setup.sql
-##WICHTIGE REGEL
-SQL = Struktur
-Functions (TypeScript) = Logik
-NICHT mischen
-Webhooks + Functions
-Webhooks triggern IMMER Functions
+```
 
-Flow:
+### WICHTIGE REGEL
 
-Frontend → Webhook → Function → Database
-Beispiel Architektur
-User klickt Button
-→ Frontend JS
-→ ruft Webhook
-→ Webhook ruft Supabase Function
-→ Function schreibt in DB
-##Pflichtregeln Backend
-1. SQL nur in migrations/
-2. Functions nur in backend/functions/
-3. Jede Function eigener Ordner
-4. index.ts ist Pflicht
-5. Shared Code in _shared/
-6. Keine Secrets im Frontend
-7. Service Keys nur im Backend
-Ziel
-- klar getrennt (Frontend / Backend)
-- sicher (keine Secrets im Frontend)
-- skalierbar
-- reproduzierbar
-- Supabase-ready
+- SQL = Struktur
+- Functions (TypeScript) = Logik
+- nicht mischen
+
+---
+
+## Webhooks + Functions
+
+Webhooks werden im Backend verarbeitet und als eigene Function gekapselt (z. B. `webhook-handler`).
