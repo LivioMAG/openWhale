@@ -90,7 +90,7 @@ export async function listTemplates(userId) {
   const sb = await getSupabaseClient();
   const { data, error } = await sb
     .from("image_templates")
-    .select("id,user_id,account_id,note,comment,tag,color,usage_count,created_at,updated_at")
+    .select("id,user_id,account_id,note,prompt,comment,tag,color,usage_count,created_at,updated_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -100,11 +100,14 @@ export async function listTemplates(userId) {
 
 export async function createTemplate(userId, payload) {
   const sb = await getSupabaseClient();
+  const note = payload.note?.trim() || "";
+  const prompt = payload.prompt?.trim() || note;
   const insertPayload = {
     user_id: userId,
     account_id: userId,
-    note: payload.note?.trim() || null,
-    comment: payload.comment?.trim() || null,
+    note,
+    prompt,
+    comment: Array.isArray(payload.comment) ? payload.comment : [],
     tag: payload.tag?.trim() || null,
     color: payload.color?.trim() || "#E8F8F0",
     usage_count: 0
@@ -113,7 +116,7 @@ export async function createTemplate(userId, payload) {
   const { data, error } = await sb
     .from("image_templates")
     .insert(insertPayload)
-    .select("id,user_id,account_id,note,comment,tag,color,usage_count,created_at,updated_at")
+    .select("id,user_id,account_id,note,prompt,comment,tag,color,usage_count,created_at,updated_at")
     .single();
 
   if (error) throw error;
