@@ -10,7 +10,7 @@ import {
   signOut,
   deleteAccount
 } from "../services/authService.js";
-import { createOrder, listOrders, listTemplates } from "../services/dashboardService.js";
+import { createOrder, listOrders, listTemplates, uploadOrderInputImage } from "../services/dashboardService.js";
 import { renderAppbar, renderAuthView, renderDashboard } from "./render.js";
 
 function setFeedback(type, message) {
@@ -166,7 +166,7 @@ export function bindDashboardEvents(getUser) {
     }
 
     if (orderToOpen) {
-      setState({ activeOrderId: orderToOpen, tagQuery: "", uploadedImageName: "", feedback: null });
+      setState({ activeOrderId: orderToOpen, tagQuery: "", uploadedImageName: "", uploadedImagePath: "", feedback: null });
       renderDashboard(getUser());
       return;
     }
@@ -199,10 +199,29 @@ export function bindDashboardEvents(getUser) {
     }
   };
 
-  root.onchange = (event) => {
+  root.onchange = async (event) => {
     if (event.target.id === "photo-upload") {
       const file = event.target.files?.[0];
-      setState({ uploadedImageName: file?.name || "" });
+      const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
+      if (!file || !activeOrder) return;
+
+      try {
+        setState({ uploadedImageName: file.name, feedback: null });
+        const updatedOrder = await uploadOrderInputImage({
+          userId: getUser().id,
+          orderId: activeOrder.id,
+          file
+        });
+
+        setState({
+          uploadedImagePath: updatedOrder.input_image || "",
+          orders: state.orders.map((entry) => (entry.id === updatedOrder.id ? updatedOrder : entry)),
+          feedback: { type: "success", message: "Input-Bild wurde hochgeladen und dem Auftrag zugeordnet." }
+        });
+      } catch (error) {
+        setFeedback("error", `Upload fehlgeschlagen: ${normalizeError(error)}`);
+      }
+
       renderDashboard(getUser());
     }
   };
@@ -269,7 +288,8 @@ export function bindDashboardEvents(getUser) {
     if (!dropzone) return;
     event.preventDefault();
 
-    if (!state.uploadedImageName) {
+    const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
+    if (!activeOrder?.input_image) {
       setFeedback("warning", "Upload fehlt: Bitte zuerst ein Foto hochladen.");
       renderDashboard(getUser());
       return;
@@ -299,7 +319,7 @@ export function bindDashboardEvents(getUser) {
       setState({
         feedback: {
           type: "success",
-          message: "Template-Bestätigung gespeichert. TODO: tatsächliche Anwendung implementieren."
+          message: "Template-Bestätigung gespeichert. TODO: tatsächliche Anwendung und usage_count-Inkrement implementieren."
         }
       });
       renderDashboard(getUser());
