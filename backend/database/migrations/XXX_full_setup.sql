@@ -263,9 +263,9 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- Andere Buckets/Objekte entfernen
--- (für neue Instanz meist leer, hier zur Sicherheit explizit)
-delete from storage.objects where bucket_id <> 'order-images';
+-- Andere Buckets entfernen (Objekt-Löschungen niemals direkt per SQL auf storage.objects)
+-- WICHTIG: Objekte über die Storage API entfernen, z. B. supabase.storage.from(bucket).remove([...]).
+-- Direktes DELETE auf storage.objects ist durch storage.protect_delete() gesperrt.
 delete from storage.buckets where id <> 'order-images';
 
 alter table storage.objects enable row level security;
