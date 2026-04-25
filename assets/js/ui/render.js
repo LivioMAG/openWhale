@@ -167,6 +167,14 @@ function renderOrderDetail() {
         <h3>Foto hochladen</h3>
         <input id="photo-upload" type="file" accept="image/*" />
         ${
+          order?.input_image_url
+            ? `<div class="order-image-preview">
+                <p class="context-note">Hochgeladenes Foto (Vorschau):</p>
+                <img src="${order.input_image_url}" alt="Hochgeladenes Foto für Auftrag ${order?.order_number || ""}" />
+              </div>`
+            : ""
+        }
+        ${
           order?.input_image
             ? `<p class="context-note">Input gespeichert: ${order.input_image}</p>`
             : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
@@ -177,9 +185,47 @@ function renderOrderDetail() {
             : '<p class="context-note">Output-Bild ist noch nicht erstellt.</p>'
         }
         <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
+
+        <div class="generated-images">
+          <h3>Fertige Bilder</h3>
+          ${
+            order?.output_image_url
+              ? `<table class="generated-images-table">
+                  <thead>
+                    <tr>
+                      <th>Datei</th>
+                      <th>Aktion</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>${order.output_image}</td>
+                      <td><a class="btn btn--secondary generated-download-link" href="${order.output_image_url}" download>Download</a></td>
+                    </tr>
+                  </tbody>
+                </table>`
+              : '<p class="context-note">Noch keine fertigen Bilder vorhanden.</p>'
+          }
+        </div>
       </div>
       <aside class="template-panel">
         <h3>Templates</h3>
+        <form id="template-create-form" class="inline-form template-create-form">
+          <h4>Template anlegen</h4>
+          ${inputField({ id: "template-note", label: "Titel / Notiz" })}
+          ${inputField({ id: "template-tag", label: "Tag", required: false })}
+          <div class="form-group">
+            <label for="template-comment">Kommentar (optional)</label>
+            <textarea id="template-comment" name="template-comment" rows="3"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="template-color">Farbe</label>
+            <input id="template-color" name="template-color" type="color" value="#E8F8F0" />
+          </div>
+          <div class="actions">
+            <button class="btn btn--primary" type="submit">Template speichern</button>
+          </div>
+        </form>
         <label for="tag-filter">Tag-Suche</label>
         <input id="tag-filter" name="tag-filter" list="template-tag-options" value="${state.tagQuery}" placeholder="z. B. Kinderzimmer" autocomplete="off" />
         <datalist id="template-tag-options">
