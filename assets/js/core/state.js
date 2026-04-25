@@ -12,6 +12,14 @@ export const state = {
   selectedTemplateId: null,
   uploadedImageName: "",
   uploadedImagePath: "",
+  templateModalOpen: false,
+  templateModalMode: "create",
+  templateEditingId: null,
+  templateDraft: {
+    note: "",
+    tag: "",
+    color: "#E8F8F0"
+  },
   loading: {
     orders: false,
     templates: false,
