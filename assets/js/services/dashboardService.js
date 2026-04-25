@@ -169,6 +169,26 @@ export async function listTemplates(userId) {
   return data || [];
 }
 
+export async function listOrderOutputs(userId, orderId) {
+  const sb = await getSupabaseClient();
+  const { data, error } = await sb
+    .from("image_order_outputs")
+    .select("id,job_id,image_path,prompt,status,metadata,created_at")
+    .eq("user_id", userId)
+    .eq("job_id", orderId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  const rows = data || [];
+  const signedUrls = await Promise.all(rows.map((row) => createSignedImageUrl(sb, row.image_path)));
+
+  return rows.map((row, index) => ({
+    ...normalizeLatestOutputRow(row),
+    output_image_url: signedUrls[index] || null
+  }));
+}
+
 export async function createTemplate(userId, payload) {
   const sb = await getSupabaseClient();
   const note = payload.note?.trim() || "";

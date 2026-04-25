@@ -200,17 +200,74 @@ function renderTemplateModal() {
   </dialog>`;
 }
 
+function formatDateTime(value) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function renderOrderOutputsTable() {
+  if (state.loading.outputs) {
+    return '<p class="context-note">Outputs werden geladen …</p>';
+  }
+
+  if (!state.orderOutputs.length) {
+    return '<p class="empty-state">Noch keine Outputs vorhanden.</p>';
+  }
+
+  return `<table class="order-outputs-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Template / Prompt</th>
+          <th>Erstellt am</th>
+          <th>Status</th>
+          <th>Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.orderOutputs
+          .map(
+            (output, index) => `<tr>
+              <td>${index + 1}</td>
+              <td>${output.prompt || "Ohne Prompt"}</td>
+              <td>${formatDateTime(output.created_at)}</td>
+              <td><span class="status-pill">${output.status || "unknown"}</span></td>
+              <td>${
+                output.output_image_url
+                  ? `<a class="btn btn--ghost generated-download-link" href="${output.output_image_url}" target="_blank" rel="noopener noreferrer">Download</a>`
+                  : "—"
+              }</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
 function renderOrderDetail() {
   const order = state.orders.find((entry) => entry.id === state.activeOrderId);
   const filteredTemplates = getFilteredTemplates();
   const allTags = [...new Set(state.templates.map((template) => template.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   return `<section class="order-detail-view">
-    <header>
-      <h2>${order?.order_number || "Auftrag"}</h2>
-      ${order?.order_name ? `<p class="context-note">${order.order_name}</p>` : '<p class="context-note">Kein Auftragsname vergeben.</p>'}
+    <header class="order-detail-header">
+      <div>
+        <h2>${order?.order_number || "Auftrag"}</h2>
+        ${order?.order_name ? `<p class="context-note">${order.order_name}</p>` : '<p class="context-note">Kein Auftragsname vergeben.</p>'}
+      </div>
+      <div class="order-meta">
+        <span><strong>Erstellt:</strong> ${formatDateTime(order?.created_at)}</span>
+      </div>
     </header>
-    ${feedbackBox(state.feedback)}
+    ${state.feedback ? feedbackBox(state.feedback) : ""}
     <div class="order-detail-layout">
       <div class="order-main-column">
         <section class="image-pair-panel">
@@ -225,7 +282,14 @@ function renderOrderDetail() {
             }
           </article>
           <article class="image-column">
-            <h3>Output</h3>
+            <div class="image-column-head">
+              <h3>Output</h3>
+              ${
+                order?.output_image_url
+                  ? `<a class="btn btn--ghost generated-download-link" href="${order.output_image_url}" target="_blank" rel="noopener noreferrer">Download</a>`
+                  : ""
+              }
+            </div>
             ${
               order?.output_image_url
                 ? `<div class="order-image-preview"><img src="${order.output_image_url}" alt="Letztes Output-Bild für Auftrag ${order?.order_number || ""}" /></div>
@@ -233,6 +297,12 @@ function renderOrderDetail() {
                 : '<p class="empty-state">Noch kein Output-Bild vorhanden.</p>'
             }
           </article>
+        </section>
+        <section class="generated-images">
+          <div class="generated-images-header">
+            <h3>Alle Outputs <span class="count-badge">${state.orderOutputs.length}</span></h3>
+          </div>
+          ${renderOrderOutputsTable()}
         </section>
       </div>
       <aside class="template-panel">

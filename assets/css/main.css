@@ -197,6 +197,19 @@ input:focus, textarea:focus, button:focus, a:focus {
   border-radius: var(--radius);
   padding: var(--space-3);
 }
+.order-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 8px 4px 18px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-2);
+}
+.order-meta {
+  display: grid;
+  align-content: start;
+  color: var(--text-muted);
+}
 .order-detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -233,8 +246,28 @@ input:focus, textarea:focus, button:focus, a:focus {
 }
 .generated-images {
   margin-top: var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: var(--space-2);
+}
+.generated-images-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #eef4f0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-left: 8px;
 }
 .generated-images-table {
   width: 100%;
@@ -250,6 +283,30 @@ input:focus, textarea:focus, button:focus, a:focus {
 .generated-download-link {
   text-decoration: none;
   display: inline-block;
+}
+.order-outputs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.order-outputs-table th,
+.order-outputs-table td {
+  border-top: 1px solid var(--border);
+  padding: 10px 8px;
+  text-align: left;
+}
+.order-outputs-table thead th {
+  border-top: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.status-pill {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e8f8f0;
+  color: #1d6945;
+  font-weight: 600;
+  font-size: 0.85rem;
 }
 .template-panel {
   border-left: 1px solid var(--border);
@@ -313,6 +370,12 @@ input:focus, textarea:focus, button:focus, a:focus {
   padding: var(--space-2);
   min-height: 260px;
 }
+.image-column-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
 .upload-tile {
   border: 2px dashed #b7d8c3;
   border-radius: 10px;
@@ -361,7 +424,14 @@ input:focus, textarea:focus, button:focus, a:focus {
 }
 
 @media (max-width: 960px) {
+  .order-detail-header {
+    flex-direction: column;
+  }
   .image-pair-panel {
     grid-template-columns: 1fr;
+  }
+  .order-outputs-table {
+    display: block;
+    overflow-x: auto;
   }
 }
