@@ -1,6 +1,8 @@
 import { state } from "../core/state.js";
 import { feedbackBox, inputField } from "./components.js";
 
+const TEMPLATE_COLORS = ["#E8F8F0", "#FCEEF8", "#FFF4DE", "#EAF0FF", "#F6F2FF"];
+
 export function renderAppbar() {
   const appbar = document.getElementById("appbar");
   appbar.classList.toggle("hidden", !state.session);
@@ -162,6 +164,42 @@ function getFilteredTemplates() {
   return state.templates.filter((template) => (template.tag || "").toLowerCase().includes(query));
 }
 
+function renderTemplateModal() {
+  if (!state.templateModalOpen) return "";
+
+  const title = state.templateModalMode === "edit" ? "Template bearbeiten" : "Template erstellen";
+  const submitLabel = state.templateModalMode === "edit" ? "Speichern" : "Anlegen";
+  const value = state.templateDraft || { note: "", tag: "", color: TEMPLATE_COLORS[0] };
+  const allTags = [...new Set(state.templates.map((template) => template.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+  return `<dialog class="confirm-dialog template-modal" open>
+    <form id="template-modal-form" method="dialog">
+      <h3>${title}</h3>
+      ${inputField({ id: "template-modal-note", label: "Notiz", value: value.note || "" })}
+      <div class="form-group">
+        <label for="template-modal-tag">Tag</label>
+        <input id="template-modal-tag" name="template-modal-tag" list="template-modal-tag-options" value="${value.tag || ""}" placeholder="Tag eingeben oder wählen" autocomplete="off" />
+        <datalist id="template-modal-tag-options">
+          ${allTags.map((tag) => `<option value="${tag}"></option>`).join("")}
+        </datalist>
+      </div>
+      <div class="form-group">
+        <span class="color-picker-label">Farbe</span>
+        <div class="color-grid" role="radiogroup" aria-label="Pastellfarben">
+          ${TEMPLATE_COLORS.map(
+            (color) => `<button class="color-option ${value.color === color ? "is-active" : ""}" type="button" data-template-color="${color}" aria-label="Farbe ${color}" style="background:${color};"></button>`
+          ).join("")}
+        </div>
+        <input id="template-modal-color" name="template-modal-color" type="hidden" value="${value.color || TEMPLATE_COLORS[0]}" />
+      </div>
+      <menu>
+        <button class="btn btn--primary" type="submit">${submitLabel}</button>
+        <button id="template-modal-cancel" class="btn btn--ghost" type="button">Abbrechen</button>
+      </menu>
+    </form>
+  </dialog>`;
+}
+
 function renderOrderDetail() {
   const order = state.orders.find((entry) => entry.id === state.activeOrderId);
   const filteredTemplates = getFilteredTemplates();
@@ -175,57 +213,33 @@ function renderOrderDetail() {
     ${feedbackBox(state.feedback)}
     <div class="order-detail-layout">
       <div class="order-main-column">
-        <div class="upload-panel" id="upload-dropzone">
-          <h3>Foto hochladen</h3>
-          <input id="photo-upload" type="file" accept="image/*" ${order?.input_image ? "disabled" : ""} />
-          <p class="context-note">Es kann nur ein Foto pro Auftrag hochgeladen werden.</p>
-          ${
-            order?.input_image_url
-              ? `<div class="order-image-preview">
-                  <p class="context-note">Hochgeladenes Foto (Vorschau):</p>
-                  <img src="${order.input_image_url}" alt="Hochgeladenes Foto für Auftrag ${order?.order_number || ""}" />
-                </div>`
-              : ""
-          }
-          ${
-            order?.input_image
-              ? `<p class="context-note">Input gespeichert: ${order.input_image}</p>`
-              : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
-          }
-          <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
-        </div>
-
-        <section class="result-panel">
-          <h3>Fertige Bilder</h3>
-          ${
-            order?.output_image_url
-              ? `<table class="generated-images-table">
-                  <thead>
-                    <tr>
-                      <th>Datei</th>
-                      <th>Aktion</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>${order.output_image}</td>
-                      <td><a class="btn btn--secondary generated-download-link" href="${order.output_image_url}" download>Download</a></td>
-                    </tr>
-                  </tbody>
-                </table>`
-              : '<p class="context-note">Noch keine fertigen Bilder vorhanden.</p>'
-          }
+        <section class="image-pair-panel">
+          <article class="image-column">
+            <h3>Input</h3>
+            ${
+              order?.input_image_url
+                ? `<div class="order-image-preview"><img src="${order.input_image_url}" alt="Input-Bild für Auftrag ${order?.order_number || ""}" /></div>
+                   <div class="actions"><button id="remove-input-image" class="btn btn--danger" type="button">Bild löschen</button></div>`
+                : `<label class="upload-tile" for="photo-upload">+</label>
+                   <input id="photo-upload" type="file" accept="image/*" />`
+            }
+          </article>
+          <article class="image-column">
+            <h3>Output</h3>
+            ${
+              order?.output_image_url
+                ? `<div class="order-image-preview"><img src="${order.output_image_url}" alt="Letztes Output-Bild für Auftrag ${order?.order_number || ""}" /></div>
+                   <div class="actions"><button id="open-rebuild-modal" class="btn btn--secondary" type="button">Rebuild</button></div>`
+                : '<p class="empty-state">Noch kein Output-Bild vorhanden.</p>'
+            }
+          </article>
         </section>
       </div>
       <aside class="template-panel">
-        <h3>Templates</h3>
-        <form id="template-create-form" class="inline-form template-create-form">
-          <h4>Template anlegen</h4>
-          ${inputField({ id: "template-note", label: "Titel / Notiz" })}
-          <div class="actions">
-            <button class="btn btn--primary" type="submit">Template speichern</button>
-          </div>
-        </form>
+        <div class="template-panel-header">
+          <h3>Templates</h3>
+          <button id="open-template-create-modal" class="btn btn--primary" type="button">➕</button>
+        </div>
         <label for="tag-filter">Tag-Suche</label>
         <input id="tag-filter" name="tag-filter" list="template-tag-options" value="${state.tagQuery}" placeholder="z. B. Kinderzimmer" autocomplete="off" />
         <datalist id="template-tag-options">
@@ -241,17 +255,23 @@ function renderOrderDetail() {
                 : `<ul class="template-list">${filteredTemplates
                     .map(
                       (template) => `<li>
-                          <button class="template-item" draggable="true" data-template-id="${template.id}" type="button" style="border-left: 6px solid ${template.color || "#E8F8F0"};">
+                          <article class="template-item" style="border-left: 6px solid ${template.color || "#E8F8F0"}; background: ${template.color || "#E8F8F0"}33;">
                             <strong>${template.note || "Ohne Notiz"}</strong>
                             <span>Tag: ${template.tag || "Kein Tag"}</span>
                             <span>Nutzung: ${template.usage_count ?? 0}</span>
-                          </button>
+                            <div class="actions">
+                              <button class="btn btn--primary" data-template-apply="${template.id}" type="button">Template anwenden</button>
+                              <button class="btn btn--ghost" data-template-edit="${template.id}" type="button">Bearbeiten</button>
+                              <button class="btn btn--danger" data-template-delete="${template.id}" type="button">Löschen</button>
+                            </div>
+                          </article>
                         </li>`
                     )
                     .join("")}</ul>`
         }
       </aside>
     </div>
+    ${renderTemplateModal()}
   </section>`;
 }
 

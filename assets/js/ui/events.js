@@ -10,11 +10,77 @@ import {
   signOut,
   deleteAccount
 } from "../services/authService.js";
-import { createOrder, createTemplate, listOrders, listTemplates, uploadOrderInputImage } from "../services/dashboardService.js";
-import { renderAppbar, renderAuthView, renderDashboard } from "./render.js";
+import {
+  applyTemplateToOrder,
+  createOrder,
+  createTemplate,
+  deleteOrderInputImage,
+  deleteTemplate,
+  listOrders,
+  listTemplates,
+  updateTemplate,
+  uploadOrderInputImage
+} from "../services/dashboardService.js";
+import { renderAuthView, renderDashboard } from "./render.js";
 
 function setFeedback(type, message) {
   setState({ feedback: { type, message } });
+}
+
+function openTemplateModal(mode, template = null) {
+  setState({
+    templateModalOpen: true,
+    templateModalMode: mode,
+    templateEditingId: template?.id || null,
+    templateDraft: {
+      note: template?.note || "",
+      tag: template?.tag || "",
+      color: template?.color || "#E8F8F0"
+    }
+  });
+}
+
+function closeTemplateModal() {
+  setState({
+    templateModalOpen: false,
+    templateModalMode: "create",
+    templateEditingId: null,
+    templateDraft: {
+      note: "",
+      tag: "",
+      color: "#E8F8F0"
+    }
+  });
+}
+
+function openRebuildDialog(order, getUser) {
+  const dialog = document.createElement("dialog");
+  dialog.id = "rebuild-confirm-dialog";
+  dialog.className = "confirm-dialog";
+  dialog.innerHTML = `<form method="dialog">
+    <h3>Rebuild starten?</h3>
+    <p class="context-note">Auftrag: ${order?.order_number || "-"}</p>
+    <menu>
+      <button id="confirm-rebuild" class="btn btn--primary" value="confirm">Rebuild</button>
+      <button class="btn btn--ghost" value="cancel">Abbrechen</button>
+    </menu>
+  </form>`;
+
+  document.body.appendChild(dialog);
+
+  const confirmButton = dialog.querySelector("#confirm-rebuild");
+  confirmButton?.addEventListener("click", () => {
+    setState({
+      feedback: {
+        type: "success",
+        message: "Rebuild wurde gestartet. Die bestehende Modal-Interaktion bleibt aktiv; Generierungs-Workflow kann hier angedockt werden."
+      }
+    });
+    renderDashboard(getUser());
+  });
+
+  dialog.addEventListener("close", () => dialog.remove());
+  dialog.showModal();
 }
 
 async function refreshDashboardData(getUser) {
@@ -154,6 +220,16 @@ export function bindDashboardEvents(getUser) {
   root.onclick = async (event) => {
     const navSection = event.target.dataset?.navSection;
     const orderToOpen = event.target.dataset?.orderOpen;
+    const templateToApply = event.target.dataset?.templateApply;
+    const templateToEdit = event.target.dataset?.templateEdit;
+    const templateToDelete = event.target.dataset?.templateDelete;
+    const colorPick = event.target.dataset?.templateColor;
+
+    if (colorPick) {
+      setState({ templateDraft: { ...state.templateDraft, color: colorPick } });
+      renderDashboard(getUser());
+      return;
+    }
 
     if (navSection) {
       setState({ dashboardSection: navSection, feedback: null });
@@ -174,7 +250,26 @@ export function bindDashboardEvents(getUser) {
     }
 
     if (orderToOpen) {
-      setState({ activeOrderId: orderToOpen, tagQuery: "", uploadedImageName: "", uploadedImagePath: "", feedback: null });
+      setState({
+        activeOrderId: orderToOpen,
+        tagQuery: "",
+        uploadedImageName: "",
+        uploadedImagePath: "",
+        feedback: null,
+        templateModalOpen: false
+      });
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (event.target.id === "open-template-create-modal") {
+      openTemplateModal("create");
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (event.target.id === "template-modal-cancel") {
+      closeTemplateModal();
       renderDashboard(getUser());
       return;
     }
@@ -190,6 +285,84 @@ export function bindDashboardEvents(getUser) {
         renderDashboard(getUser());
       }
       return;
+    }
+
+    if (event.target.id === "open-rebuild-modal") {
+      const order = state.orders.find((entry) => entry.id === state.activeOrderId);
+      openRebuildDialog(order, getUser);
+      return;
+    }
+
+    if (event.target.id === "remove-input-image") {
+      const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
+      if (!activeOrder?.input_image) return;
+
+      try {
+        const updatedOrder = await deleteOrderInputImage({
+          userId: getUser().id,
+          orderId: activeOrder.id,
+          storagePath: activeOrder.input_image
+        });
+
+        setState({
+          orders: state.orders.map((entry) => (entry.id === updatedOrder.id ? updatedOrder : entry)),
+          feedback: { type: "success", message: "Input-Bild wurde gelöscht." }
+        });
+      } catch (error) {
+        setFeedback("error", `Löschen fehlgeschlagen: ${normalizeError(error)}`);
+      }
+
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (templateToEdit) {
+      const template = state.templates.find((entry) => entry.id === templateToEdit);
+      if (!template) return;
+      openTemplateModal("edit", template);
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (templateToDelete) {
+      try {
+        await deleteTemplate(getUser().id, templateToDelete);
+        setState({
+          templates: state.templates.filter((entry) => entry.id !== templateToDelete),
+          feedback: { type: "success", message: "Template wurde gelöscht." }
+        });
+      } catch (error) {
+        setFeedback("error", `Template konnte nicht gelöscht werden: ${normalizeError(error)}`);
+      }
+
+      renderDashboard(getUser());
+      return;
+    }
+
+    if (templateToApply) {
+      const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
+      if (!activeOrder?.input_image) {
+        setFeedback("warning", "Upload fehlt: Bitte zuerst ein Input-Bild hochladen.");
+        renderDashboard(getUser());
+        return;
+      }
+
+      try {
+        const result = await applyTemplateToOrder({
+          userId: getUser().id,
+          orderId: activeOrder.id,
+          templateId: templateToApply
+        });
+
+        setState({
+          templates: state.templates.map((entry) => (entry.id === result.template.id ? result.template : entry)),
+          feedback: { type: "success", message: "Template wurde auf den Auftrag angewendet." }
+        });
+      } catch (error) {
+        setFeedback("error", `Template konnte nicht angewendet werden: ${normalizeError(error)}`);
+      }
+
+      renderDashboard(getUser());
     }
   };
 
@@ -270,18 +443,30 @@ export function bindDashboardEvents(getUser) {
         setFeedback("success", "Passwort erfolgreich zurückgesetzt.");
       }
 
-      if (event.target.id === "template-create-form") {
-        const note = form.get("template-note");
-        if (!required(note)) throw new Error("Bitte einen Template-Titel eingeben.");
+      if (event.target.id === "template-modal-form") {
+        const payload = {
+          note: form.get("template-modal-note"),
+          tag: form.get("template-modal-tag"),
+          color: form.get("template-modal-color")
+        };
 
-        const createdTemplate = await createTemplate(getUser().id, {
-          note
-        });
+        if (!required(payload.note)) throw new Error("Bitte eine Notiz für das Template eingeben.");
 
-        setState({
-          templates: [createdTemplate, ...state.templates],
-          feedback: { type: "success", message: "Template wurde erfolgreich angelegt." }
-        });
+        if (state.templateModalMode === "edit" && state.templateEditingId) {
+          const updatedTemplate = await updateTemplate(getUser().id, state.templateEditingId, payload);
+          setState({
+            templates: state.templates.map((entry) => (entry.id === updatedTemplate.id ? updatedTemplate : entry)),
+            feedback: { type: "success", message: "Template wurde aktualisiert." }
+          });
+        } else {
+          const createdTemplate = await createTemplate(getUser().id, payload);
+          setState({
+            templates: [createdTemplate, ...state.templates],
+            feedback: { type: "success", message: "Template wurde erfolgreich angelegt." }
+          });
+        }
+
+        closeTemplateModal();
       }
     } catch (error) {
       setFeedback("error", normalizeError(error));
@@ -289,66 +474,6 @@ export function bindDashboardEvents(getUser) {
     }
 
     renderDashboard(getUser());
-  };
-
-  root.ondragstart = (event) => {
-    const templateId = event.target.dataset?.templateId;
-    if (!templateId) return;
-    event.dataTransfer.effectAllowed = "copy";
-    event.dataTransfer.setData("text/template-id", templateId);
-  };
-
-  root.ondragover = (event) => {
-    if (event.target.closest("#upload-dropzone")) {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "copy";
-    }
-  };
-
-  root.ondrop = (event) => {
-    const dropzone = event.target.closest("#upload-dropzone");
-    if (!dropzone) return;
-    event.preventDefault();
-
-    const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
-    if (!activeOrder?.input_image) {
-      setFeedback("warning", "Upload fehlt: Bitte zuerst ein Foto hochladen.");
-      renderDashboard(getUser());
-      return;
-    }
-
-    const templateId = event.dataTransfer.getData("text/template-id");
-    if (!templateId) return;
-
-    setState({ selectedTemplateId: templateId });
-
-    const dialog = document.createElement("dialog");
-    dialog.id = "template-confirm-dialog";
-    dialog.className = "confirm-dialog";
-    dialog.innerHTML = `<form method="dialog">
-      <h3>Template anwenden?</h3>
-      <p class="context-note">Template-ID: ${templateId.slice(0, 8)}</p>
-      <menu>
-        <button id="confirm-template-apply" class="btn btn--primary" value="confirm">Ja</button>
-        <button class="btn btn--ghost" value="cancel">Abbrechen</button>
-      </menu>
-    </form>`;
-
-    document.body.appendChild(dialog);
-
-    const confirmButton = dialog.querySelector("#confirm-template-apply");
-    confirmButton?.addEventListener("click", () => {
-      setState({
-        feedback: {
-          type: "success",
-          message: "Template-Bestätigung gespeichert. TODO: tatsächliche Anwendung und usage_count-Inkrement implementieren."
-        }
-      });
-      renderDashboard(getUser());
-    });
-
-    dialog.addEventListener("close", () => dialog.remove());
-    dialog.showModal();
   };
 }
 
@@ -358,7 +483,8 @@ export async function hydrateDashboard(getUser) {
     dashboardSection: "image-generation",
     activeOrderId: null,
     tagQuery: "",
-    feedback: null
+    feedback: null,
+    templateModalOpen: false
   });
   await refreshDashboardData(getUser);
 }
