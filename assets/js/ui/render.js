@@ -2,7 +2,18 @@ import { state } from "../core/state.js";
 import { feedbackBox, inputField } from "./components.js";
 
 export function renderAppbar() {
-  document.getElementById("appbar").classList.toggle("hidden", !state.session);
+  const appbar = document.getElementById("appbar");
+  appbar.classList.toggle("hidden", !state.session);
+
+  if (!state.session) return;
+
+  const actions = document.getElementById("appbar-actions");
+  actions.innerHTML = `${
+    state.activeOrderId
+      ? '<button id="appbar-back-order" class="btn btn--ghost" type="button">← Zurück zur Auftragsliste</button>'
+      : ""
+  }
+    <button id="logout-btn" class="btn btn--ghost" type="button">Logout</button>`;
 }
 
 function authHeader(title, subtitle) {
@@ -13,6 +24,7 @@ function authHeader(title, subtitle) {
 }
 
 export function renderAuthView() {
+  renderAppbar();
   const root = document.getElementById("auth-container");
   const dashboardRoot = document.getElementById("dashboard-container");
   dashboardRoot.classList.add("hidden");
@@ -156,37 +168,34 @@ function renderOrderDetail() {
   const allTags = [...new Set(state.templates.map((template) => template.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   return `<section class="order-detail-view">
-    <button id="order-detail-back" class="btn btn--ghost order-detail-back" type="button">← Zurück zur Bilderstellung</button>
     <header>
       <h2>${order?.order_number || "Auftrag"}</h2>
       ${order?.order_name ? `<p class="context-note">${order.order_name}</p>` : '<p class="context-note">Kein Auftragsname vergeben.</p>'}
     </header>
     ${feedbackBox(state.feedback)}
     <div class="order-detail-layout">
-      <div class="upload-panel" id="upload-dropzone">
-        <h3>Foto hochladen</h3>
-        <input id="photo-upload" type="file" accept="image/*" />
-        ${
-          order?.input_image_url
-            ? `<div class="order-image-preview">
-                <p class="context-note">Hochgeladenes Foto (Vorschau):</p>
-                <img src="${order.input_image_url}" alt="Hochgeladenes Foto für Auftrag ${order?.order_number || ""}" />
-              </div>`
-            : ""
-        }
-        ${
-          order?.input_image
-            ? `<p class="context-note">Input gespeichert: ${order.input_image}</p>`
-            : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
-        }
-        ${
-          order?.output_image
-            ? `<p class="context-note">Output vorhanden: ${order.output_image}</p>`
-            : '<p class="context-note">Output-Bild ist noch nicht erstellt.</p>'
-        }
-        <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
+      <div class="order-main-column">
+        <div class="upload-panel" id="upload-dropzone">
+          <h3>Foto hochladen</h3>
+          <input id="photo-upload" type="file" accept="image/*" ${order?.input_image ? "disabled" : ""} />
+          <p class="context-note">Es kann nur ein Foto pro Auftrag hochgeladen werden.</p>
+          ${
+            order?.input_image_url
+              ? `<div class="order-image-preview">
+                  <p class="context-note">Hochgeladenes Foto (Vorschau):</p>
+                  <img src="${order.input_image_url}" alt="Hochgeladenes Foto für Auftrag ${order?.order_number || ""}" />
+                </div>`
+              : ""
+          }
+          ${
+            order?.input_image
+              ? `<p class="context-note">Input gespeichert: ${order.input_image}</p>`
+              : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
+          }
+          <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
+        </div>
 
-        <div class="generated-images">
+        <section class="result-panel">
           <h3>Fertige Bilder</h3>
           ${
             order?.output_image_url
@@ -206,22 +215,13 @@ function renderOrderDetail() {
                 </table>`
               : '<p class="context-note">Noch keine fertigen Bilder vorhanden.</p>'
           }
-        </div>
+        </section>
       </div>
       <aside class="template-panel">
         <h3>Templates</h3>
         <form id="template-create-form" class="inline-form template-create-form">
           <h4>Template anlegen</h4>
           ${inputField({ id: "template-note", label: "Titel / Notiz" })}
-          ${inputField({ id: "template-tag", label: "Tag", required: false })}
-          <div class="form-group">
-            <label for="template-comment">Kommentar (optional)</label>
-            <textarea id="template-comment" name="template-comment" rows="3"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="template-color">Farbe</label>
-            <input id="template-color" name="template-color" type="color" value="#E8F8F0" />
-          </div>
           <div class="actions">
             <button class="btn btn--primary" type="submit">Template speichern</button>
           </div>
@@ -256,6 +256,7 @@ function renderOrderDetail() {
 }
 
 export function renderDashboard(user) {
+  renderAppbar();
   const root = document.getElementById("dashboard-container");
   const authRoot = document.getElementById("auth-container");
   authRoot.classList.add("hidden");

@@ -197,18 +197,27 @@ input:focus, textarea:focus, button:focus, a:focus {
   border-radius: var(--radius);
   padding: var(--space-3);
 }
-.order-detail-back { margin-bottom: var(--space-2); }
 .order-detail-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: var(--space-3);
 }
+.order-main-column {
+  display: grid;
+  gap: var(--space-2);
+}
 .upload-panel {
   border: 2px dashed #b7d8c3;
   border-radius: var(--radius);
-  min-height: 420px;
+  min-height: 320px;
   padding: var(--space-3);
   background: #fbfdfc;
+}
+.result-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2);
+  background: #fff;
 }
 .order-image-preview {
   margin: var(--space-2) 0;
