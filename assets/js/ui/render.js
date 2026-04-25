@@ -263,9 +263,6 @@ function renderOrderDetail() {
         <h2>${order?.order_number || "Auftrag"}</h2>
         ${order?.order_name ? `<p class="context-note">${order.order_name}</p>` : '<p class="context-note">Kein Auftragsname vergeben.</p>'}
       </div>
-      <div class="order-meta">
-        <span><strong>Erstellt:</strong> ${formatDateTime(order?.created_at)}</span>
-      </div>
     </header>
     ${state.feedback ? feedbackBox(state.feedback) : ""}
     <div class="order-detail-layout">
@@ -294,15 +291,9 @@ function renderOrderDetail() {
               order?.output_image_url
                 ? `<div class="order-image-preview"><img src="${order.output_image_url}" alt="Letztes Output-Bild für Auftrag ${order?.order_number || ""}" /></div>
                    <div class="actions"><button id="open-rebuild-modal" class="btn btn--secondary" type="button">Rebuild</button></div>`
-                : '<p class="empty-state">Noch kein Output-Bild vorhanden.</p>'
+                : '<p class="empty-state empty-state--output">Noch kein Output-Bild vorhanden.</p>'
             }
           </article>
-        </section>
-        <section class="generated-images">
-          <div class="generated-images-header">
-            <h3>Alle Outputs <span class="count-badge">${state.orderOutputs.length}</span></h3>
-          </div>
-          ${renderOrderOutputsTable()}
         </section>
       </div>
       <aside class="template-panel">
