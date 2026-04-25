@@ -147,13 +147,13 @@ function renderAccountSettings(user) {
 function getFilteredTemplates() {
   const query = state.tagQuery.trim().toLowerCase();
   if (!query) return state.templates;
-  return state.templates.filter((template) => (template.tags || []).some((tag) => tag.toLowerCase().includes(query)));
+  return state.templates.filter((template) => (template.tag || "").toLowerCase().includes(query));
 }
 
 function renderOrderDetail() {
   const order = state.orders.find((entry) => entry.id === state.activeOrderId);
   const filteredTemplates = getFilteredTemplates();
-  const allTags = [...new Set(state.templates.flatMap((template) => template.tags || []))].sort((a, b) => a.localeCompare(b));
+  const allTags = [...new Set(state.templates.map((template) => template.tag).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   return `<section class="order-detail-view">
     <button id="order-detail-back" class="btn btn--ghost order-detail-back" type="button">← Zurück zur Bilderstellung</button>
@@ -167,9 +167,14 @@ function renderOrderDetail() {
         <h3>Foto hochladen</h3>
         <input id="photo-upload" type="file" accept="image/*" />
         ${
-          state.uploadedImageName
-            ? `<p class="context-note">Hochgeladen: ${state.uploadedImageName}</p>`
+          order?.input_image
+            ? `<p class="context-note">Input gespeichert: ${order.input_image}</p>`
             : '<p class="empty-state">Noch kein Foto hochgeladen.</p>'
+        }
+        ${
+          order?.output_image
+            ? `<p class="context-note">Output vorhanden: ${order.output_image}</p>`
+            : '<p class="context-note">Output-Bild ist noch nicht erstellt.</p>'
         }
         <p class="context-note">Ziehe anschließend ein Template rechts auf diese Fläche.</p>
       </div>
@@ -190,9 +195,10 @@ function renderOrderDetail() {
                 : `<ul class="template-list">${filteredTemplates
                     .map(
                       (template) => `<li>
-                          <button class="template-item" draggable="true" data-template-id="${template.id}" type="button">
-                            <strong>Template ${template.id.slice(0, 8)}</strong>
-                            <span>${(template.tags || []).join(", ") || "Keine Tags"}</span>
+                          <button class="template-item" draggable="true" data-template-id="${template.id}" type="button" style="border-left: 6px solid ${template.color || "#E8F8F0"};">
+                            <strong>${template.note || "Ohne Notiz"}</strong>
+                            <span>Tag: ${template.tag || "Kein Tag"}</span>
+                            <span>Nutzung: ${template.usage_count ?? 0}</span>
                           </button>
                         </li>`
                     )
@@ -214,7 +220,7 @@ export function renderDashboard(user) {
     return;
   }
 
-  root.innerHTML = `<section class="dashboard-layout">
+  root.innerHTML = `<section class="dashboard-layout dashboard-layout--expanded">
       <nav class="side-nav" aria-label="Dashboard Navigation">
         <button type="button" class="side-nav__item ${state.dashboardSection === "image-generation" ? "is-active" : ""}" data-nav-section="image-generation">Bilderstellung</button>
         <button type="button" class="side-nav__item side-nav__item--bottom ${state.dashboardSection === "account" ? "is-active" : ""}" data-nav-section="account">Account Settings</button>

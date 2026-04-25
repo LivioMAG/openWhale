@@ -11,6 +11,7 @@ export const state = {
   tagQuery: "",
   selectedTemplateId: null,
   uploadedImageName: "",
+  uploadedImagePath: "",
   loading: {
     orders: false,
     templates: false,
