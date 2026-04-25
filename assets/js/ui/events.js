@@ -36,9 +36,17 @@ async function refreshDashboardData(getUser) {
 }
 
 export function bindGlobalEvents(getUser, refreshSession) {
-  document.getElementById("logout-btn").addEventListener("click", async () => {
-    await signOut();
-    await refreshSession();
+  document.getElementById("appbar").addEventListener("click", async (event) => {
+    if (event.target.id === "logout-btn") {
+      await signOut();
+      await refreshSession();
+      return;
+    }
+
+    if (event.target.id === "appbar-back-order") {
+      setState({ activeOrderId: null, selectedTemplateId: null, feedback: null });
+      renderDashboard(getUser());
+    }
   });
 
   window.__refreshDashboardData = () => refreshDashboardData(getUser);
@@ -171,13 +179,6 @@ export function bindDashboardEvents(getUser) {
       return;
     }
 
-    if (event.target.id === "order-detail-back") {
-      setState({ activeOrderId: null, selectedTemplateId: null, feedback: null });
-      renderDashboard(getUser());
-      return;
-    }
-
-
     if (event.target.id === "delete-account") {
       try {
         await deleteAccount();
@@ -204,6 +205,13 @@ export function bindDashboardEvents(getUser) {
       const file = event.target.files?.[0];
       const activeOrder = state.orders.find((entry) => entry.id === state.activeOrderId);
       if (!file || !activeOrder) return;
+
+      if (activeOrder.input_image) {
+        setFeedback("warning", "Es ist bereits ein Foto für diesen Auftrag vorhanden.");
+        event.target.value = "";
+        renderDashboard(getUser());
+        return;
+      }
 
       try {
         setState({ uploadedImageName: file.name, feedback: null });
@@ -267,10 +275,7 @@ export function bindDashboardEvents(getUser) {
         if (!required(note)) throw new Error("Bitte einen Template-Titel eingeben.");
 
         const createdTemplate = await createTemplate(getUser().id, {
-          note,
-          tag: form.get("template-tag"),
-          comment: form.get("template-comment"),
-          color: form.get("template-color")
+          note
         });
 
         setState({
