@@ -178,7 +178,10 @@ as $$
         jsonb_typeof(elem) = 'object'
         and (elem ? 'User')
         and (elem ? 'System')
-        and jsonb_object_length(elem) = 2
+        and (
+          select count(*)
+          from jsonb_object_keys(elem)
+        ) = 2
         and jsonb_typeof(elem->'User') = 'string'
         and jsonb_typeof(elem->'System') = 'string'
       )
