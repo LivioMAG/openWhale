@@ -44,14 +44,19 @@ h1, h2, h3 { margin-top: 0; line-height: 1.2; }
 .text-muted { color: var(--text-muted); }
 .form-group { margin-bottom: var(--space-2); }
 label { display: block; font-weight: 600; margin-bottom: 6px; }
-input {
+input, textarea {
   width: 100%;
   border: 1px solid #bfd0c4;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 1rem;
+  font-family: inherit;
 }
-input:focus, button:focus, a:focus {
+textarea {
+  resize: vertical;
+  min-height: 88px;
+}
+input:focus, textarea:focus, button:focus, a:focus {
   outline: 3px solid rgba(62, 207, 142, 0.35);
   outline-offset: 1px;
 }
@@ -205,9 +210,44 @@ input:focus, button:focus, a:focus {
   padding: var(--space-3);
   background: #fbfdfc;
 }
+.order-image-preview {
+  margin: var(--space-2) 0;
+}
+.order-image-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 340px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  background: #fff;
+}
+.generated-images {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+.generated-images-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.generated-images-table th,
+.generated-images-table td {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+  vertical-align: middle;
+}
+.generated-download-link {
+  text-decoration: none;
+  display: inline-block;
+}
 .template-panel {
   border-left: 1px solid var(--border);
   padding-left: var(--space-2);
+}
+.template-create-form {
+  margin-bottom: var(--space-2);
 }
 .empty-state {
   border: 1px dashed var(--border);

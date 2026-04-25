@@ -10,7 +10,7 @@ import {
   signOut,
   deleteAccount
 } from "../services/authService.js";
-import { createOrder, listOrders, listTemplates, uploadOrderInputImage } from "../services/dashboardService.js";
+import { createOrder, createTemplate, listOrders, listTemplates, uploadOrderInputImage } from "../services/dashboardService.js";
 import { renderAppbar, renderAuthView, renderDashboard } from "./render.js";
 
 function setFeedback(type, message) {
@@ -260,6 +260,23 @@ export function bindDashboardEvents(getUser) {
         if (pw !== repeat) throw new Error("Passwörter stimmen nicht überein.");
         await updatePassword(pw);
         setFeedback("success", "Passwort erfolgreich zurückgesetzt.");
+      }
+
+      if (event.target.id === "template-create-form") {
+        const note = form.get("template-note");
+        if (!required(note)) throw new Error("Bitte einen Template-Titel eingeben.");
+
+        const createdTemplate = await createTemplate(getUser().id, {
+          note,
+          tag: form.get("template-tag"),
+          comment: form.get("template-comment"),
+          color: form.get("template-color")
+        });
+
+        setState({
+          templates: [createdTemplate, ...state.templates],
+          feedback: { type: "success", message: "Template wurde erfolgreich angelegt." }
+        });
       }
     } catch (error) {
       setFeedback("error", normalizeError(error));
