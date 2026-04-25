@@ -263,10 +263,16 @@ set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- Andere Buckets entfernen (Objekt-Löschungen niemals direkt per SQL auf storage.objects)
+-- Andere Buckets nur dann entfernen, wenn sie leer sind.
 -- WICHTIG: Objekte über die Storage API entfernen, z. B. supabase.storage.from(bucket).remove([...]).
 -- Direktes DELETE auf storage.objects ist durch storage.protect_delete() gesperrt.
-delete from storage.buckets where id <> 'order-images';
+delete from storage.buckets b
+where b.id <> 'order-images'
+  and not exists (
+    select 1
+    from storage.objects o
+    where o.bucket_id = b.id
+  );
 
 alter table storage.objects enable row level security;
 
