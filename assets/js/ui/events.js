@@ -16,6 +16,7 @@ import {
   createTemplate,
   deleteOrderInputImage,
   deleteTemplate,
+  listOrderOutputs,
   listOrders,
   listTemplates,
   updateTemplate,
@@ -92,7 +93,9 @@ async function refreshDashboardData(getUser) {
 
   try {
     const [orders, templates] = await Promise.all([listOrders(userId), listTemplates(userId)]);
-    setState({ orders, templates, feedback: null });
+    const activeOrderId = state.activeOrderId;
+    const orderOutputs = activeOrderId ? await listOrderOutputs(userId, activeOrderId) : [];
+    setState({ orders, templates, orderOutputs, feedback: null });
   } catch (error) {
     setFeedback("error", `Supabase-Fehler: ${normalizeError(error)}`);
   } finally {
@@ -110,7 +113,7 @@ export function bindGlobalEvents(getUser, refreshSession) {
     }
 
     if (event.target.id === "appbar-back-order") {
-      setState({ activeOrderId: null, selectedTemplateId: null, feedback: null });
+      setState({ activeOrderId: null, orderOutputs: [], selectedTemplateId: null, feedback: null });
       renderDashboard(getUser());
     }
   });
@@ -252,12 +255,22 @@ export function bindDashboardEvents(getUser) {
     if (orderToOpen) {
       setState({
         activeOrderId: orderToOpen,
+        orderOutputs: [],
         tagQuery: "",
         uploadedImageName: "",
         uploadedImagePath: "",
         feedback: null,
+        loading: { ...state.loading, outputs: true },
         templateModalOpen: false
       });
+      try {
+        const orderOutputs = await listOrderOutputs(getUser().id, orderToOpen);
+        setState({ orderOutputs });
+      } catch (error) {
+        setFeedback("error", `Outputs konnten nicht geladen werden: ${normalizeError(error)}`);
+      } finally {
+        setState({ loading: { ...state.loading, outputs: false } });
+      }
       renderDashboard(getUser());
       return;
     }

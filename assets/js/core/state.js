@@ -6,6 +6,7 @@ export const state = {
   dashboardSection: "image-generation",
   orders: [],
   templates: [],
+  orderOutputs: [],
   activeOrderId: null,
   orderCreationOpen: false,
   tagQuery: "",
@@ -23,6 +24,7 @@ export const state = {
   loading: {
     orders: false,
     templates: false,
+    outputs: false,
     creatingOrder: false
   }
 };
